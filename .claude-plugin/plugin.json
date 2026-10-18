@@ -1,0 +1,9 @@
+{
+  "name": "efficiency-loop",
+  "version": "1.0.0",
+  "description": "Efficiency harness for Claude Code",
+  "author": {
+    "name": "Reed Ostrov",
+    "email": "reedhomefolder@example.com"
+  }
+}
