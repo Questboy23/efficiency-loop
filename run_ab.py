@@ -100,12 +100,34 @@ def grade(task: Path, wd: Path, timeout=300):
     for t in task.glob("*_test.py"):
         shutil.copy2(t, wd / t.name)
     test = next(task.glob("*_test.py")).name
+    has_pytest = subprocess.run([sys.executable, "-c", "import pytest"],
+                               capture_output=True).returncode == 0
+    mod = ["pytest", "-q", "-x"] if has_pytest else ["unittest", "-q"]
     try:
-        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-x", test],
+        r = subprocess.run([sys.executable, "-m", *mod, test],
                            cwd=wd, capture_output=True, text=True, timeout=timeout)
         return r.returncode == 0
     except subprocess.TimeoutExpired:
         return False
+
+
+def call_with_retry(prompt, cwd, **kw):
+    """Run call_claude, retrying once after a pause when the free proxy hiccups.
+
+    The pilot run died with is_error=true after 3 turns (a transient proxy/API
+    failure, not a task failure). Retrying once after a wait converts those into
+    completed runs instead of wasted ones.
+    """
+    res = call_claude(prompt, cwd, **kw)
+    attempts = 1
+    while (res.get("is_error") or "error" in res) and attempts < 2:
+        wait = 60 * attempts
+        print(f"    [retry] run failed (is_error={res.get('is_error')}, err={res.get('error')}), "
+              f"waiting {wait}s then retrying once")
+        time.sleep(wait)
+        res = call_claude(prompt, cwd, **kw)
+        attempts += 1
+    return res
 
 
 def main():
@@ -171,8 +193,11 @@ def main():
             rec["rewrite_ok"] = bool(new)
             if new:
                 prompt = new
-        res = call_claude(prompt, wd, layers[arm], a.model, a.max_turns, a.bare)
-        res["passed"] = grade(task, wd) if "error" not in res else False
+        res = call_with_retry(prompt, wd, layer_file=layers[arm], model=a.model,
+                              max_turns=a.max_turns, bare=a.bare)
+        # Fix: correctly handle is_error as an execution failure, not a task failure.
+        valid_run = "error" not in res and not res.get("is_error", False)
+        res["passed"] = grade(task, wd) if valid_run else False
         if res.get("cost_usd") is not None:
             res["cost_usd"] = round(res["cost_usd"] + rewrite_cost, 5)
         res.pop("result_text", None)

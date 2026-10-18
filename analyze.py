@@ -16,8 +16,23 @@ B_BOOT, B_PERM = 5000, 20000
 
 
 def load(path):
+    """Load valid runs only.
+
+    A run is invalid if the harness hit an execution error (timeout, unparseable
+    output), if Claude Code reported is_error (rate limits, API failures), or if
+    no tokens were billed. Invalid runs say nothing about the layer, so they are
+    excluded from every statistic and test.
+    """
     rows = [json.loads(l) for l in open(path) if l.strip()]
-    return [r for r in rows if "error" not in r and r.get("cost_usd") is not None]
+    kept, dropped = [], 0
+    for r in rows:
+        if ("error" in r) or r.get("is_error") or (r.get("tokens_in") or 0) == 0:
+            dropped += 1
+            continue
+        kept.append(r)
+    print(f"loaded {len(kept)} valid runs ({dropped} invalid runs excluded: "
+          f"errors, is_error, or zero tokens)")
+    return [r for r in kept if r.get("cost_usd") is not None]
 
 
 def exact_mcnemar(b, c):
