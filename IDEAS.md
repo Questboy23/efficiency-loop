@@ -1,6 +1,6 @@
 # Efficiency Loop: ideas (dated public record)
 
-Author: Goyim. First published: 2026-10-09. License: MIT.
+Author: Reed Ostrov (Goyim). First published: 2026-10-09. License: MIT.
 
 The ideas below are released openly so anyone, including AI labs, can use them. This file is a dated record of authorship.
 

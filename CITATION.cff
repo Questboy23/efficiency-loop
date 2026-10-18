@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use these ideas, please cite them as below."
+title: "Efficiency Loop: Ideas for Making Coding Agents Cheaper and Faster"
+type: software
+authors:
+  - family-names: Ostrov
+    given-names: Reed
+    affiliation: Denison University
+license: MIT
+repository-code: "https://github.com/Questboy23/efficiency-loop"
+date-released: 2026-10-09
