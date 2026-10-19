@@ -70,7 +70,7 @@ def child_env():
     return env
 
 
-def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=False, timeout=900, forensics=False):
+def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=False, timeout=900, forensics=False, extra_env=None):
     cmd = ["claude"]
     if bare:
         cmd.append("--bare")
@@ -88,7 +88,7 @@ def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=F
         cmd += ["--max-turns", str(max_turns)]
     t0 = time.time()
     try:
-        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=child_env())
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, env={**child_env(), **(extra_env or {})})
         out, err = r.stdout, r.stderr
     except subprocess.TimeoutExpired:
         return {"error": "timeout", "wall_s": time.time() - t0}

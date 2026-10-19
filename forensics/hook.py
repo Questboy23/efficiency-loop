@@ -40,6 +40,13 @@ def edited_text(ti):
     return "\n".join(parts)
 
 
+def log_trip(path, kind):
+    dest = os.environ.get("EFFICIENCY_LOOP_FORENSICS_LOG")
+    if dest:
+        with open(dest, "a") as f:
+            f.write(json.dumps({"file": path, "kind": kind}) + "\n")
+
+
 def main():
     if os.environ.get("EFFICIENCY_LOOP_FORENSICS", "on").lower() == "off":
         return 0
@@ -58,11 +65,13 @@ def main():
         except (OSError, UnicodeError):
             return 0
         if res["tripped"]:
+            log_trip(path, "data")
             sys.stderr.write(check.format_message(res) + "\n")
             return 2
     elif path.endswith(CODE_EXT):
         found = code_findings(edited_text(ti))
         if found:
+            log_trip(path, "code")
             sys.stderr.write("FORENSICS TRIPPED on %s:\n- %s\n%s\n" % (path, "\n- ".join(found), check.MSG))
             return 2
     return 0
