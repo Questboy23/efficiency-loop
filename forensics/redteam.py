@@ -43,7 +43,25 @@ def smooth_trend(seed):
     return "smooth.csv", "\n".join(rows) + "\n"
 
 
-CASES = [benford_forged, llm_plausible_table, narrow_range_md, smooth_trend]
+def json_plausible(seed):
+    """JSON results array with varied 3-digit counts and 2-decimal rates; no round bias."""
+    import json
+    r = random.Random(seed)
+    rows = [{"site": "s%d" % i, "n": r.randint(120, 980), "rate": round(r.uniform(2.0, 9.0), 2)} for i in range(50)]
+    return "results.json", json.dumps(rows)
+
+
+def grim_valid_means(seed):
+    """Means reported with n that are GRIM-consistent (derived from integer sums): a faker who checks."""
+    r = random.Random(seed)
+    rows = ["group,n,mean_score"]
+    for i in range(40):
+        n = r.randint(12, 60)
+        rows.append("g%d,%d,%.2f" % (i, n, round(r.randint(n * 20, n * 80) / n, 2)))
+    return "grim_ok.csv", "\n".join(rows) + "\n"
+
+
+CASES = [benford_forged, llm_plausible_table, narrow_range_md, smooth_trend, json_plausible, grim_valid_means]
 
 
 def main():
