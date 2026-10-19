@@ -41,3 +41,7 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 00:25 ET
 - Loop 19 in progress: turn-capped hard set, runs 0-2 per cell (9 tasks x 3 arms), output bench/turncap3.jsonl, log bench/turncap3_r3.log. Next: McNemar on pooled pairs, report.py table, EVAL_LOG row, red-team (due loop 19).
+
+## 2026-10-19 00:45 ET
+- Loop 19 done: turn-capped hard set 9 tasks x 3 arms x 3 runs. Pass 12/27, 12/27, 13/27 (baseline, layer, layer_forensics). McNemar p=1.0 both pairs. Tokens +2.9% / +2.6%. Script bench/turncap_mcnemar.py. Logged.
+- Next: add this table to bench/report.py/RESULTS.md; find a non-ceiling task source (SWE-style).
