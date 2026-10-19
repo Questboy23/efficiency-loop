@@ -459,6 +459,17 @@ EXCL_STEP = {"id", "index", "idx", "year", "date", "rank", "row", "time", "t", "
              "week", "bin", "lag", "age", "grid", "step", "iter", "epoch", "ccn", "no", "num", "year_month", "quarter"}
 
 
+def _sweep_partner(t, i):
+    """A parameter grid cycles one column while another holds in runs (nested loops); that is code output, not typing."""
+    for j in t.numeric:
+        if j == i:
+            continue
+        vs = [v for v in t.vals[j] if v is not None]
+        if len(vs) > 1 and len(set(vs)) <= 12 and sum(1 for k in range(len(vs) - 1) if vs[k] == vs[k + 1]) >= len(vs) / 2:
+            return True
+    return False
+
+
 def too_perfect(t, out):
     for i in t.numeric:
         toks = set(tokens(t.headers[i]))
@@ -477,6 +488,14 @@ def too_perfect(t, out):
             if abs(diffs[0]) > max(1e-6, 1e-3 * max(abs(v) for v in vals)) and abs(diffs[0]) != 1 and all(abs(d - diffs[0]) <= 1e-9 * max(1, abs(diffs[0])) for d in diffs):
                 out.append(hit("constant_step", t.label(i),
                                "all %d consecutive differences equal %s" % (len(diffs), round(diffs[0], 6)), vals[:6]))
+        ints = [int(v) for v in vals if v == int(v)]
+        if len(ints) == len(vals) >= 30 and len(set(ints)) <= 12 and not toks & (EXCL_STEP | {"hour", "minute", "dow", "weekday", "k", "fold", "seed", "group", "batch", "cluster", "level", "trial", "rep", "replicate", "sample"}):
+            for per in range(2, 13):
+                if len(ints) >= 3 * per and len(set(ints[:per])) == per and all(ints[k] == ints[k % per] for k in range(len(ints))) \
+                        and not _sweep_partner(t, i):
+                    out.append(hit("cyclic_values", t.label(i),
+                                   "all %d values repeat the same %d-value cycle %s" % (len(ints), per, ints[:per]), ints[:2 * per]))
+                    break
         decs = [c.strip().split(".")[1] for c in raws if "." in c.strip() and "e" not in c.lower()]
         if len(raws) >= 10 and len(decs) >= 0.8 * len(raws):
             top, cnt = Counter(decs).most_common(1)[0]

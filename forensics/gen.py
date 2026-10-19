@@ -153,6 +153,19 @@ def real_ohlc_csv(seed):
     return "\n".join(rows) + "\n"
 
 
+def fab_cycle(seed):
+    r = random.Random(seed)
+    k = r.choice([5, 7])
+    rows = ["respondent,satisfaction,income"] + ["r%d,%d,%d" % (i, i % k + 1, r.randint(20000, 90000)) for i in range(60)]
+    return "survey.csv", "\n".join(rows) + "\n", ("cyclic",)
+
+
+def real_survey_csv(seed):
+    r = random.Random(seed)
+    rows = ["respondent,satisfaction,income"] + ["r%d,%d,%d" % (i, r.choices([1, 2, 3, 4, 5], [1, 2, 4, 5, 3])[0], r.lognormvariate(10.8, 0.5)) for i in range(60)]
+    return "\n".join(rows) + "\n"
+
+
 FABRICATED = [fab_uniform_digits, fab_round, fab_grim, fab_duplicates, fab_impossible,
-              fab_impossible_pct, fab_total, fab_step, fab_pvals, fab_decimals, fab_json, fab_ohlc]
-REAL_SHAPED = [lognormal_csv, pareto_csv, stats_table_md, total_table_csv, real_ohlc_csv]
+              fab_impossible_pct, fab_total, fab_step, fab_pvals, fab_decimals, fab_json, fab_ohlc, fab_cycle]
+REAL_SHAPED = [lognormal_csv, pareto_csv, stats_table_md, total_table_csv, real_ohlc_csv, real_survey_csv]
