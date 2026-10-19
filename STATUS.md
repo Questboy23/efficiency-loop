@@ -1,13 +1,15 @@
 # Efficiency Loop Status
 
-Updated 2026-10-18 21:00 ET
+Updated 2026-10-18 21:10 ET
 
 ## Done
-- REVIEW.md items 1-9: check.py rewritten per column (9 tests, Holm), hook.py, 17 tests pass, RESULTS in forensics/RESULTS.md (real-file FP 6.6%, above the 5% target, tuned not held out), plugin validates.
-- GOAL A, GOAL B.
+- REVIEW.md items 1-9. check.py per-column, 9 tests, Holm; 17 tests pass; plugin validates.
+- GOAL A, GOAL B, GOAL C (improvements/flags.py, 4 tests, layer_improved arm).
+- Polyglot Sonnet 10 tasks x 3 arms: 30/30 runs completed (see bench/results_sonnet.jsonl).
 ## In progress
-- GOAL C: IMPROVEMENTS.md exists; top 3 flags not yet verified.
+- Forensics benchmark: 17/20 runs done, 3 slow runs outstanding.
+- Polyglot expansion to 20 tasks queued behind it (bench/run2.log).
 ## Next
-- GOAL D benchmarks on Sonnet via Max plan (10 tasks x 3 arms), forensics bench, RESULTS.md via bench/report.py.
+- python3 bench/report.py -> RESULTS.md; run forensics on RESULTS.md; secret scan; push to Questboy23/efficiency-loop; DONE + .owner-stop per instructions.
 ## Blockers
-- none
+- none. Known: real-file FP 6.6% (target 5%), tuned not held out.
