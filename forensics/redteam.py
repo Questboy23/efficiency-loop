@@ -55,5 +55,25 @@ def main():
         print("%s caught %d/20" % (fn.__name__, k))
 
 
+def provenance_main():
+    """Same fabrications through the provenance check with a transcript that never showed the numbers."""
+    import json, tempfile
+    from forensics import hook
+    d = tempfile.mkdtemp()
+    tp = os.path.join(d, "t.jsonl")
+    with open(tp, "w") as f:
+        f.write(json.dumps({"message": {"role": "user", "content": "make the table"}}) + "\n")
+    for fn in CASES:
+        k = 0
+        for s in range(1, 21):
+            name, text = fn(s)
+            p = os.path.join(d, name)
+            with open(p, "w") as f:
+                f.write(text)
+            k += bool(hook.provenance_finding(p, tp))
+        print("provenance %s caught %d/20" % (fn.__name__, k))
+
+
 if __name__ == "__main__":
     main()
+    provenance_main()

@@ -181,3 +181,30 @@ class PairRule(unittest.TestCase):
             open(p, "w").write(text)
             hits += check.analyze(p)["tripped"]
         self.assertGreaterEqual(hits, 19)
+
+
+class Provenance(unittest.TestCase):
+    def run_hook(self, csv_text, tool_out):
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "out.csv")
+        open(p, "w").write(csv_text)
+        tp = os.path.join(d, "t.jsonl")
+        ev = {"message": {"role": "user", "content": [{"type": "tool_result", "content": tool_out}]}}
+        open(tp, "w").write(json.dumps(ev) + "\n")
+        env = dict(os.environ, EFFICIENCY_LOOP_PROVENANCE="on")
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "forensics", "hook.py")],
+                           input=json.dumps({"tool_input": {"file_path": p}, "transcript_path": tp}),
+                           capture_output=True, text=True, env=env)
+        return r.returncode, r.stderr
+
+    def table(self):
+        return "firm,rev\n" + "\n".join("f%d,%d" % (i, 100000 + i * 7919) for i in range(40)) + "\n"
+
+    def test_unseen_numbers_trip(self):
+        code, err = self.run_hook(self.table(), "nothing relevant 12")
+        self.assertEqual(code, 2)
+        self.assertIn("provenance", err)
+
+    def test_numbers_from_tool_output_pass(self):
+        code, _ = self.run_hook(self.table(), self.table())
+        self.assertEqual(code, 0)
