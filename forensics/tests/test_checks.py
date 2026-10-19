@@ -82,6 +82,24 @@ class LoopTwelveProse(unittest.TestCase):
         self.assertTrue(run("list.txt", lst)["tripped"])
 
 
+class LoopThirteenRowTotal(unittest.TestCase):
+    def rows(self, delta):
+        import random
+        r = random.Random(7)
+        out = ["form,correct,wrong,total"]
+        for k in range(30):
+            c, w = r.randint(3, 40), r.randint(0, 9)
+            tot = c + w + (delta if k % 6 == 0 else 0)
+            out.append("f%d,%d,%d,%d" % (k, c, w, tot))
+        return "\n".join(out) + "\n"
+
+    def test_total_above_shown_columns_is_an_unshown_category(self):
+        self.assertFalse(run("res.csv", self.rows(+2))["tripped"])
+
+    def test_total_below_shown_columns_trips(self):
+        self.assertTrue(run("res.csv", self.rows(-2))["tripped"])
+
+
 class Gating(unittest.TestCase):
     def test_fewer_than_50_numbers_is_silent(self):
         res = run("a.csv", "p,n\n1.7,5\n2.2,4\n")

@@ -475,7 +475,8 @@ def arithmetic(t, out):
                 continue
             s = sum(t.vals[i][r] for i in others)
             (rows_ok if close(s, t.vals[ti][r]) else rows_bad).append((t.vals[ti][r], s))
-        if rows_bad and len(rows_ok) >= len(rows_bad):
+        # a total above the shown columns' sum is usually an unshown category (missing, other); only a total below it is impossible
+        if rows_bad and len(rows_ok) >= len(rows_bad) and any(a < b for a, b in rows_bad):
             out.append(hit("row_total_mismatch", t.label(ti),
                            "%d rows where stated total differs from the sum of columns to its left" % len(rows_bad),
                            [x for pair in rows_bad[:4] for x in pair]))
