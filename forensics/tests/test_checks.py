@@ -206,6 +206,16 @@ class BashHook(unittest.TestCase):
         code, _ = self.run_bash("python3 -c 'import random; random.randint(1,5); open(\"survey.csv\",\"w\").write(...)  # illustrative'", self.rows())
         self.assertEqual(code, 0)
 
+    def test_script_output_not_typed_in_command_skips_provenance(self):
+        env = dict(os.environ, EFFICIENCY_LOOP_PROVENANCE="on")
+        d = tempfile.mkdtemp()
+        open(os.path.join(d, "t.csv"), "w").write("firm,rev\n" + "\n".join("f%d,%d" % (i, 100000 + i * 7919) for i in range(40)) + "\n")
+        tp = os.path.join(d, "tp.jsonl")
+        open(tp, "w").write("")
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "forensics", "hook.py")], env=env, capture_output=True, text=True,
+                           input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "uv run python build.py"}, "cwd": d, "transcript_path": tp}))
+        self.assertEqual(r.returncode, 0)
+
     def test_plain_command_passes(self):
         code, _ = self.run_bash("ls", self.rows())
         self.assertEqual(code, 0)

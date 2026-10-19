@@ -153,7 +153,16 @@ def trip(path, kind, lines):
 
 def check_data_file(path, tp, command=""):
     """Return an exit code (2 on trip) for one data file. command is the Bash text that produced it, if any."""
-    if tp and os.environ.get("EFFICIENCY_LOOP_PROVENANCE", "off").lower() == "on":
+    typed = True
+    if command:
+        # A script that fetched or computed the data never prints it, so provenance only applies when the command itself carries the numbers.
+        try:
+            with open(path, errors="replace") as f:
+                mine = num_set(f.read())
+        except OSError:
+            return 0
+        typed = bool(mine) and len(mine & num_set(command)) / len(mine) >= 0.5
+    if typed and tp and os.environ.get("EFFICIENCY_LOOP_PROVENANCE", "off").lower() == "on":
         try:
             pf = provenance_finding(path, tp)
         except (OSError, UnicodeError):
