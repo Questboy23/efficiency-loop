@@ -81,7 +81,7 @@ def transcript_text(tp):
 
 
 ANY_NUM = NUM3
-UNS_MIN = 50       # numbers in the file before the unsourced rule applies
+UNS_MIN = 20       # numbers in the file before the unsourced rule applies
 UNS_SEEN = 20      # trip when the transcript showed fewer numbers than this
 LABELED = re.compile(r"illustrative|placeholder|fictional|synthetic|simulated|dummy|made[- ]up|not real|hypothetical|fabricated|example data|sample data|mock|fake|unavailable|estimate", re.I)
 
