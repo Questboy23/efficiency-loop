@@ -347,3 +347,17 @@ class Provenance(unittest.TestCase):
     def test_numbers_from_tool_output_pass(self):
         code, _ = self.run_hook(self.table(), self.table())
         self.assertEqual(code, 0)
+
+
+class Loop16FalseAlarms(unittest.TestCase):
+    def test_long_id_digit_strings_are_not_benford_sample(self):
+        ids = [int("1" + "".join(str((i * 7 + j) % 10) for j in range(60))) for i in range(200)]
+        self.assertEqual(tests_hit(run("ids.json", json.dumps(ids))), [])
+
+    def test_one_repeated_value_is_not_identical_decimals(self):
+        text = "id,x\n" + "\n".join("%d,1.035" % i for i in range(30)) + "\n"
+        self.assertNotIn("identical_decimals", tests_hit(run("c.csv", text)))
+
+    def test_all_row_is_not_a_total(self):
+        text = "bucket,n\n" + "\n".join("b%d,%d" % (i, 100 + i) for i in range(5)) + "\nall,300\n"
+        self.assertNotIn("total_mismatch", tests_hit(run("d.csv", text)))

@@ -186,6 +186,7 @@ def load(path):
         body = re.sub(r"```.*?```", " ", body, flags=re.S)
         leaves = [m for m in TEXT_NUM_RE.findall(body)
                   if not re.match(r"^(19|20)\d\d$", m) and parse_num(m) is not None]
+    leaves = [m for m in leaves if sum(c.isdigit() for c in m) <= 15]   # longer digit strings are ids or hashes
     if leaves and not leaves_dense(text, leaves):
         leaves = []   # numbers scattered in prose or config (versions, ids, years, prices) are not one sample
     return tables, leaves
@@ -451,7 +452,7 @@ def close(a, b):
 
 def arithmetic(t, out):
     n = len(t.rows)
-    tot_rows = [r for r in range(n) if row_label(t, r) in ("total", "sum", "grand total", "totals", "all")]
+    tot_rows = [r for r in range(n) if row_label(t, r) in ("total", "sum", "grand total", "totals")]
     for i in t.numeric:
         for r in tot_rows:
             stated = t.vals[i][r]
@@ -527,7 +528,7 @@ def too_perfect(t, out):
         decs = [c.strip().split(".")[1] for c in raws if "." in c.strip() and "e" not in c.lower()]
         if len(raws) >= 10 and len(decs) >= 0.8 * len(raws):
             top, cnt = Counter(decs).most_common(1)[0]
-            if len(top) >= 3 and cnt >= 0.8 * len(raws) and cnt >= 8:
+            if len(top) >= 3 and cnt >= 0.8 * len(raws) and cnt >= 8 and len({c.strip() for c in raws}) >= 3:
                 out.append(hit("identical_decimals", t.label(i),
                                ".%s is the decimal part of %d of %d values" % (top, cnt, len(raws)),
                                [c for c in raws if c.strip().endswith("." + top)]))
