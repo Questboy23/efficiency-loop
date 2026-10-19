@@ -9,11 +9,12 @@ Example (pilot, ~40 runs):
   python3 run_ab.py --bench polyglot-benchmark/python/exercises/practice \
       --arms baseline,layer --tasks 10 --runs 2
 """
-import argparse, json, os, random, shutil, subprocess, sys, tempfile, threading, time
+import argparse, json, os, re, random, shutil, subprocess, sys, tempfile, threading, time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+JS_DEPS = Path(os.environ.get("JS_DEPS", "/tmp/jsdeps"))  # one shared npm install of jest + babel
 TOOLS = "Bash,Read,Edit,Write,Glob,Grep,Agent,Task"
 
 
@@ -22,11 +23,24 @@ def find_tasks(bench: Path):
     for d in sorted(bench.iterdir()):
         if not d.is_dir():
             continue
-        tests = list(d.glob("*_test.py"))
+        tests = list(d.glob("*_test.py")) + list(d.glob("*.spec.js"))
         instr = d / ".docs" / "instructions.md"
         if tests and instr.exists():
             tasks.append(d)
     return tasks
+
+
+def is_js(task: Path) -> bool:
+    return any(task.glob("*.spec.js"))
+
+
+def test_file(task: Path) -> Path:
+    return next(task.glob("*.spec.js")) if is_js(task) else next(task.glob("*_test.py"))
+
+
+def unskip(text: str) -> str:
+    """Exercism JS specs ship most tests as xtest/xit; enable them all so the agent and grader see the full suite."""
+    return re.sub(r"\bx(test|it|describe)\b", r"\1", text)
 
 
 def task_prompt(task: Path) -> str:
@@ -36,10 +50,15 @@ def task_prompt(task: Path) -> str:
         p = docs / name
         if p.exists():
             parts.append(p.read_text())
-    test = next(task.glob("*_test.py")).name
-    stub = test.replace("_test.py", ".py")
-    parts.append(f"Implement the solution in {stub} so that every test in {test} passes. "
-                 f"Do not modify {test}. Use only the Python standard library.")
+    test = test_file(task).name
+    if is_js(task):
+        stub = test.replace(".spec.js", ".js")
+        parts.append(f"Implement the solution in {stub} so that every test in {test} passes (run them with `npx jest`). "
+                     f"Do not modify {test}. Use only Node built-ins; dependencies are already installed.")
+    else:
+        stub = test.replace("_test.py", ".py")
+        parts.append(f"Implement the solution in {stub} so that every test in {test} passes. "
+                     f"Do not modify {test}. Use only the Python standard library.")
     return "\n\n".join(parts)
 
 
@@ -52,6 +71,10 @@ def prepare_workdir(task: Path) -> Path:
             shutil.copytree(item, wd / item.name)
         else:
             shutil.copy2(item, wd / item.name)
+    if is_js(task):
+        tf = wd / test_file(task).name
+        tf.write_text(unskip(tf.read_text()))
+        (wd / "node_modules").symlink_to(JS_DEPS / "node_modules")
     subprocess.run(["git", "init", "-q"], cwd=wd)
     subprocess.run(["git", "add", "-A"], cwd=wd)
     subprocess.run(["git", "-c", "user.email=ab@local", "-c", "user.name=ab", "commit", "-qm", "start"], cwd=wd)
@@ -130,9 +153,17 @@ def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=F
 
 def grade(task: Path, wd: Path, timeout=300):
     # Restore the pristine test file so edited tests cannot pass a run.
+    if is_js(task):
+        tf = test_file(task)
+        (wd / tf.name).write_text(unskip(tf.read_text()))
+        try:
+            r = subprocess.run(["npx", "jest", "--silent"], cwd=wd, capture_output=True, text=True, timeout=timeout)
+            return r.returncode == 0
+        except subprocess.TimeoutExpired:
+            return False
     for t in task.glob("*_test.py"):
         shutil.copy2(t, wd / t.name)
-    test = next(task.glob("*_test.py")).name
+    test = test_file(task).name
     has_pytest = subprocess.run([sys.executable, "-c", "import pytest"],
                                capture_output=True).returncode == 0
     mod = ["pytest", "-q", "-x"] if has_pytest else ["unittest", "-q"]
@@ -173,7 +204,8 @@ def main():
     ap.add_argument("--tasks", type=int, default=0, help="use only the first N tasks (0 = all)")
     ap.add_argument("--runs", type=int, default=2, help="runs per task per arm")
     ap.add_argument("--out", default="results.jsonl")
-    ap.add_argument("--model", default=None)
+    ap.add_argument("--model", default="claude-sonnet-5-5", help="pinned for every child run; one model per table")
+    ap.add_argument("--only", default="", help="comma-separated task names (overrides --tasks)")
     ap.add_argument("--max-turns", type=int, default=None, help="optional; only if your Claude Code version supports it")
     ap.add_argument("--bare", action="store_true", help="isolated runs; needs ANTHROPIC_API_KEY, not your subscription")
     ap.add_argument("--sleep", type=float, default=0, help="seconds between runs, to spread usage across limit windows")
@@ -194,7 +226,10 @@ def main():
             sys.exit(f"unknown arm {arm}")
 
     tasks = find_tasks(Path(a.bench))
-    if a.tasks:
+    if a.only:
+        names = set(a.only.split(","))
+        tasks = [t for t in tasks if t.name in names]
+    elif a.tasks:
         tasks = sorted(random.Random(a.seed).sample(tasks, min(a.tasks, len(tasks))), key=lambda t: t.name)  # fixed-seed pick
     if not tasks:
         sys.exit("no tasks found; point --bench at python/exercises/practice")
