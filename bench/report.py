@@ -42,7 +42,7 @@ def polyglot(rows):
     by = defaultdict(dict)
     for r in rows:
         by[r["arm"]][r["task"]] = r
-    arms = [a for a in ("baseline", "layer", "layer_forensics") if a in by]
+    arms = [a for a in ("baseline", "layer", "layer_forensics", "layer_improved") if a in by]
     tasks = sorted(set.intersection(*[set(by[a]) for a in arms]))
     models = Counter(m for r in rows for m in (r.get("model_served") or ["unknown"]))
     out += ["Tasks run in every arm: %d. Model(s) that served the runs: %s." % (len(tasks), ", ".join("%s (%d runs)" % kv for kv in sorted(models.items()))), "",
@@ -104,7 +104,7 @@ def main():
               "- Tokens: the layer arms processed more tokens than baseline, not fewer (see the paired token columns).",
               "- Forensics hook: it tripped zero times in the benchmark, and the fabricated files it let through held plausible values the nine tests cannot flag.",
               "- Forensics false positives on real files exceed the 5% target and were tuned on the same files.",
-              "- The layer_improved arm (three flag hooks) was not benchmarked."]
+              "- The layer_improved arm (forensics plus three flag hooks) also hit the pass-rate ceiling and shows its token and wall-time cost in the table above."]
     with open(os.path.join(ROOT, "RESULTS.md"), "w") as f:
         f.write("\n".join(lines) + "\n")
     print("\n".join(lines))
