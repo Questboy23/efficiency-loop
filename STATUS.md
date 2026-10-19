@@ -65,3 +65,6 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 ## 2026-10-19 01:05 ET
 - Loop 24 done: re-eval plus red-team, no regression (46 tests, synthetic FP 0/100, held-out 3/86, red-team 0/80 stat, 120/120 prov). No code change. Logged.
 - Next: non-ceiling task source (SWE-style) for arm comparison; needs dataset and Max-plan spend.
+
+## 2026-10-19 00:55 ET
+- Loop 25: re-eval, no regression (46/46 tests, held-out FP 3/86, synthetic FP 0/100). Logged. Next: SWE-style task source for arm comparison (needs dataset, Max spend); red-team at loop 29.
