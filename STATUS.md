@@ -87,3 +87,6 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 ## 2026-10-19 01:55 ET
 - Loop 29 done: report.py merges layer_improved and ablation arms into the turn-capped table (generated, RESULTS.md forensics exit 0); re-eval and red-team, no regression (46 tests, held-out 3/86, red-team 0/80 stat, 120/120 prov). Logged.
 - Next: uncapped fresh-reviewer test needs a task Sonnet fails; none on disk. Candidates: SWE-style dataset from owner.
+
+## 2026-10-19 02:00 ET
+- Loop 30 done: re-eval, no regression (46 tests, synthetic FP 0/100, RESULTS.md exit 0). Logged. Blocker unchanged: no non-ceiling task source on disk for an uncapped arm comparison; repeat re-evals add no information. Next: SWE-style dataset if the owner supplies one; red-team at loop 34.
