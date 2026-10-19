@@ -45,3 +45,7 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 ## 2026-10-19 00:45 ET
 - Loop 19 done: turn-capped hard set 9 tasks x 3 arms x 3 runs. Pass 12/27, 12/27, 13/27 (baseline, layer, layer_forensics). McNemar p=1.0 both pairs. Tokens +2.9% / +2.6%. Script bench/turncap_mcnemar.py. Logged.
 - Next: add this table to bench/report.py/RESULTS.md; find a non-ceiling task source (SWE-style).
+
+## 2026-10-19 00:55 ET
+- Loop 20 done: 46/46 tests, synthetic FP 0/100, red-team statistical 0/80, provenance 120/120. No code change, logged.
+- Next: find a non-ceiling task source (SWE-style) for arm comparison; grow provenance real-transcript FP sample beyond 5.
