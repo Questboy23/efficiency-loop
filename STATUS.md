@@ -90,3 +90,6 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 02:00 ET
 - Loop 30 done: re-eval, no regression (46 tests, synthetic FP 0/100, RESULTS.md exit 0). Logged. Blocker unchanged: no non-ceiling task source on disk for an uncapped arm comparison; repeat re-evals add no information. Next: SWE-style dataset if the owner supplies one; red-team at loop 34.
+
+## 2026-10-19 02:10 ET
+- Loop 31 in progress: 6-turn cap (reviewer hook fits), arms baseline/layer_fr/layer_pm, 9 tasks x 2 runs, output bench/turncap6.jsonl, log bench/turncap6.log. Next: bench/turncap_mcnemar.py, EVAL_LOG row, commit.
