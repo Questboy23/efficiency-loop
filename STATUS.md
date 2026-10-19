@@ -38,3 +38,6 @@ Updated 2026-10-19 00:30 ET
 
 ## OWNER PRIORITY (23:42)
 Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in order: REVIEW.md item 10 (hard Polyglot set where baseline passes 40-70%), item 11 (pin one model id per table), item 14 (cut layer token overhead), then rerun the arms and regenerate RESULTS.md.
+
+## 2026-10-19 00:25 ET
+- Loop 19 in progress: turn-capped hard set, runs 0-2 per cell (9 tasks x 3 arms), output bench/turncap3.jsonl, log bench/turncap3_r3.log. Next: McNemar on pooled pairs, report.py table, EVAL_LOG row, red-team (due loop 19).
