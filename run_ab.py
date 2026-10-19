@@ -62,6 +62,18 @@ FORENSICS_HOOK = {"PostToolUse": [{"matcher": "Write|Edit|MultiEdit", "hooks": [
     {"type": "command", "command": f'python3 "{HERE}/forensics/hook.py"'}]}]}
 
 
+def improved_hooks():
+    """Hook block for the layer_improved arm: forensics plus the three flag hooks (see improvements/flags.py)."""
+    def cmd(mode):
+        return {"type": "command", "command": f'python3 "{HERE}/improvements/flags.py" {mode}'}
+    return {"PreToolUse": [{"matcher": "Write|Edit|MultiEdit", "hooks": [cmd("pre")]}],
+            "PostToolUse": FORENSICS_HOOK["PostToolUse"] + [{"matcher": "*", "hooks": [cmd("post")]}],
+            "Stop": [{"hooks": [cmd("stop")]}]}
+
+
+IMPROVED_ENV = {"EFFICIENCY_LOOP_CHECKLIST": "1", "EFFICIENCY_LOOP_PROGRESS_METER": "1", "EFFICIENCY_LOOP_FRESH_REVIEWER": "1"}
+
+
 def child_env():
     """Max-plan mode: drop every variable that could route the child to the free proxy or a paid key."""
     env = dict(os.environ)
@@ -70,7 +82,7 @@ def child_env():
     return env
 
 
-def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=False, timeout=900, forensics=False, extra_env=None):
+def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=False, timeout=900, forensics=False, extra_env=None, improved=False):
     cmd = ["claude"]
     if bare:
         cmd.append("--bare")
@@ -79,6 +91,9 @@ def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=F
     settings = {"env": {"ANTHROPIC_BASE_URL": "https://api.anthropic.com"}}
     if forensics:
         settings["hooks"] = FORENSICS_HOOK
+    if improved:
+        settings["hooks"] = improved_hooks()
+        extra_env = {**IMPROVED_ENV, **(extra_env or {})}
     cmd += ["--settings", json.dumps(settings)]
     if layer_file:
         cmd += ["--append-system-prompt-file", str(layer_file)]
@@ -169,7 +184,7 @@ def main():
     a = ap.parse_args()
 
     layers = {"baseline": None, "layer": HERE / "efficiency-layer.md", "layer_rewrite": HERE / "efficiency-layer.md",
-              "layer_forensics": HERE / "efficiency-layer.md"}
+              "layer_forensics": HERE / "efficiency-layer.md", "layer_improved": HERE / "efficiency-layer.md"}
     for spec in a.extra_arm:
         name, path = spec.split("=", 1)
         layers[name] = Path(path).resolve()
@@ -214,7 +229,7 @@ def main():
             if new:
                 prompt = new
         res = call_with_retry(prompt, wd, layer_file=layers[arm], model=a.model, max_turns=a.max_turns,
-                              bare=a.bare, timeout=a.timeout, forensics=(arm == "layer_forensics"))
+                              bare=a.bare, timeout=a.timeout, forensics=(arm == "layer_forensics"), improved=(arm == "layer_improved"))
         # An infrastructure error is not graded as a task failure, but a timeout is recorded as a failure.
         valid_run = ("error" not in res or res["error"] == "timeout") and not res.get("is_error", False)
         res["passed"] = grade(task, wd) if valid_run and res.get("error") != "timeout" else False

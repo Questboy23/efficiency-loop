@@ -52,28 +52,16 @@ This file lists potential improvements to the harness, ranked by expected benefi
 - **Cost**: Low (requires an additional LLM call per checkpoint).
 - **How to Test**: Measure the rate of hallucination-related failures caught by the smoke test.
 
-## Top 3 Cheap Improvements Implemented Behind On/Off Flags
+## Top 3 cheap improvements, implemented behind flags
 
-The following three improvements have been implemented as optional features controlled by environment variables or configuration flags. They can be toggled for A/B testing.
+All three live in `improvements/flags.py` (one hook entry point, wired in `hooks/hooks.json`). Each mode does nothing unless its flag equals `1`. Tests: `python3 -m unittest improvements.test_flags`.
 
-### EFFICIENCY_LOOP_CHECKLIST=1
-- Enables the intake checklist enforcement (Improvement #1). When set, the harness will prompt for a CHECKLIST.md at the start of each task and block further actions until the file exists.
+| flag | hook | behavior |
+|---|---|---|
+| `EFFICIENCY_LOOP_CHECKLIST=1` | PreToolUse on Write, Edit, MultiEdit | Denies edits to any file except CHECKLIST.md until CHECKLIST.md exists in the project. |
+| `EFFICIENCY_LOOP_PROGRESS_METER=1` | PostToolUse on every tool | After 12 tool calls with no file edit, sends one nudge per stall (exit 2). An edit resets the count. |
+| `EFFICIENCY_LOOP_FRESH_REVIEWER=1` | Stop | Blocks the first stop of a session and asks for a fresh reviewer agent. The second stop passes. |
 
-### EFFICIENCY_LOOP_PROGRESS_METER=1
-- Enables the progress rate per token monitor (Improvement #2). When set, the harness will display a running metric of tokens consumed per unit of progress (e.g., per test passed).
+A/B arm: `run_ab.py --arms baseline,layer,layer_improved` sets all three flags plus the forensics hook for the `layer_improved` arm. Result of that A/B: see RESULTS.md (not run unless listed there).
 
-### EFFICIENCY_LOOP_FRESH_REVIEWER=1
-- Enables the fresh reviewer subagent (Improvement #3). When set, before considering a task complete, a fresh subagent will verify the requirements.
-
-## How to Toggle
-
-Set environment variables before invoking Claude Code, or edit the configuration in `.claude/settings.json` to add these variables.
-
-Example:
-```bash
-EFFICIENCY_LOOP_CHECKLIST=1 EFFICIENCY_LOOP_PROGRESS_METER=1 claude
-```
-
-## Note
-
-The improvements are designed to be lightweight and can be combined. The default behavior (all flags unset) corresponds to the baseline harness as described in the core specification.
+The progress meter is a stall detector (calls since last edit), not a tokens-per-progress rate. A real rate needs a definition of progress per task type.
