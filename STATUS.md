@@ -71,3 +71,6 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 01:00 ET
 - Loop 26: re-eval, no regression (46 tests, held-out 3/86, RESULTS.md forensics exit 0). Logged. Blocker: no non-ceiling task source on disk; repeat re-evals add nothing. Next: red-team at loop 29, or SWE-style dataset if the owner supplies one.
+
+## 2026-10-19 01:10 ET
+- Loop 27 in progress: untested layer_improved arm on the turn-capped set (9 tasks x 3 runs, Sonnet 5.5), output bench/turncap_improved.jsonl, log bench/turncap_improved.log. Next: McNemar vs turncap3 baseline via bench/turncap_mcnemar.py, EVAL_LOG row, commit.
