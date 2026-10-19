@@ -216,7 +216,7 @@ def main():
     a = ap.parse_args()
 
     layers = {"baseline": None, "layer": HERE / "efficiency-layer.md", "layer_rewrite": HERE / "efficiency-layer.md",
-              "layer_forensics": HERE / "efficiency-layer.md", "layer_improved": HERE / "efficiency-layer.md"}
+              "layer_forensics": HERE / "efficiency-layer.md", "layer_lite": HERE / "efficiency-layer-lite.md", "layer_improved": HERE / "efficiency-layer.md"}
     for spec in a.extra_arm:
         name, path = spec.split("=", 1)
         layers[name] = Path(path).resolve()
