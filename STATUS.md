@@ -102,3 +102,6 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 02:10 ET
 - Loop 32 done: 4-turn cap baseline 17/18 vs layer_pm 15/18 (p=0.625). Baseline near ceiling at 4 and 6 turns; no cap separates arms. Logged. Next: red-team at loop 34; blocked on a non-ceiling task source.
+
+## 2026-10-19 02:25 ET
+- Loop 33 done: re-eval, 46/46 tests, RESULTS.md exit 0, no code change. Logged. Blocker unchanged: no non-ceiling task source. Next: red-team at loop 34.
