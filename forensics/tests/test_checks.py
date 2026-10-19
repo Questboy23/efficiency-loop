@@ -53,6 +53,20 @@ class RealShapedPass(unittest.TestCase):
         self.assertLessEqual(len(tripped), max(1, len(files) // 10), tripped)
 
 
+class LoopElevenExemptions(unittest.TestCase):
+    def test_code_columns_and_amounts_stay_silent(self):
+        import random
+        r = random.Random(7)
+        pad = "d1,d2,code,rate\n" + "".join("20040101,99991231,%05d,.0%d\n" % (r.choice([142, 198, 436, 1000, 26446, 26656]), r.randint(1, 9) * 100 + r.randint(0, 9)) for _ in range(400))
+        self.assertFalse(run("pad.csv", pad)["tripped"])
+        idx = "i,v\n" + "".join("%d,%d\n" % (5 * k, r.randint(100, 999)) for k in range(400))
+        self.assertFalse(run("idx.csv", idx)["tripped"])
+        money = "amount\n" + "".join("%d\n" % (r.choice([1, 2, 5, 10, 25]) * 10 ** r.randint(3, 7)) for _ in range(500))
+        self.assertFalse(run("money.csv", money)["tripped"])
+        rep = "seats_total\n" + "".join("%d\n" % r.choice([75, 125, 150, 200, 300, 450]) for _ in range(600))
+        self.assertFalse(run("rep.csv", rep)["tripped"])
+
+
 class Gating(unittest.TestCase):
     def test_fewer_than_50_numbers_is_silent(self):
         res = run("a.csv", "p,n\n1.7,5\n2.2,4\n")

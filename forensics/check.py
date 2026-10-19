@@ -302,11 +302,26 @@ def benford(col_vals, label, out, header=""):
                         detail="n=%d, MAD=%.4f (limit %.3f)" % (n, mad2, BENFORD2_MAD), nums=[]))
 
 
-ID_TOK = {"code", "id", "ccn", "zip", "phone", "year", "date", "npi", "cpt", "hcpcs", "ndc", "sha", "offset", "byte", "index", "idx", "fips", "geoid", "tract", "place", "county", "state", "gid", "fid", "uid"}
+ID_TOK = {"ms", "duration", "timestamp", "epoch", "code", "id", "ccn", "zip", "phone", "year", "date", "npi", "cpt", "hcpcs", "ndc", "sha", "offset", "byte", "index", "idx", "fips", "geoid", "tract", "place", "county", "state", "gid", "fid", "uid"}
 
 
 def is_id(header):
     return bool(set(tokens(header)) & ID_TOK) or header.lower().endswith(("_id", "_code"))
+
+
+def codey(raw_col, vals):
+    """Zero-padded fixed-width codes and arithmetic-progression indexes are labels, not measurements."""
+    raw = [c.strip() for c in raw_col if c.strip()]
+    if len(raw) >= 30:
+        pad = [c for c in raw if len(c) >= 4 and c[0] == "0" and c.isdigit()]
+        if len(pad) >= 0.1 * len(raw) and len({len(c) for c in raw}) == 1:
+            return True   # constant width with leading zeros: a code column
+    nv = [v for v in vals if v is not None]
+    if len(nv) >= 30:
+        steps = Counter(b - a for a, b in zip(nv, nv[1:]))
+        if steps.most_common(1)[0][1] >= 0.95 * (len(nv) - 1) and steps.most_common(1)[0][0] > 0:
+            return True
+    return False
 
 
 def last_digit(raw_col, label, out, header=""):
@@ -337,6 +352,9 @@ def round_excess(raw_col, label, out, header=""):
     if n < 30 or len(set(ints)) < 8:
         return
     k = sum(1 for c in ints if c[-1] in "05")
+    rnd = [c for c in ints if c[-1] in "05"]
+    if n >= 300 and max(len(c) for c in ints) - min(len(c) for c in ints) >= 3 and sum(1 for c in rnd if c.endswith("000")) >= 0.5 * len(rnd):
+        return   # amounts spanning 3+ orders of magnitude with thousands-rounded values in 300+ rows: raised/sold money, not typing
     out.append(dict(test="round_number_excess", col=label, p=binom_upper(k, n, 0.2),
                     gate=0.5 <= k / n < 0.98,   # 100% means a unit granularity (feet in fives), not typing
                     detail="%d of %d integers (%.0f%%) end in 0 or 5, expected 20%%" % (k, n, 100.0 * k / n),
@@ -587,7 +605,9 @@ def analyze(path):
         ordering(t, f)
         for i in t.numeric:
             nv = [v for v in t.vals[i] if v is not None]
-            if len(nv) >= 200 and len(set(nv)) < 0.1 * len(nv):
+            if len(nv) >= 200 and len(set(nv)) < 0.2 * len(nv):
+                continue
+            if codey(t.cols[i], t.vals[i]):
                 continue   # few distinct values in a long column: categories or price points, digit tests do not apply
             benford(t.vals[i], t.label(i), f, t.headers[i])
             last_digit(t.cols[i], t.label(i), f, t.headers[i])
