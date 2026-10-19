@@ -186,7 +186,15 @@ def load(path):
         body = re.sub(r"```.*?```", " ", body, flags=re.S)
         leaves = [m for m in TEXT_NUM_RE.findall(body)
                   if not re.match(r"^(19|20)\d\d$", m) and parse_num(m) is not None]
+    if leaves and not leaves_dense(text, leaves):
+        leaves = []   # numbers scattered in prose or config (versions, ids, years, prices) are not one sample
     return tables, leaves
+
+
+def leaves_dense(text, leaves):
+    """True when loose numbers make up a large share of the file's word tokens (a bare list of values)."""
+    toks = len(re.findall(r"[A-Za-z_]+|[-+]?\d[\d.,eE+-]*", text))
+    return len(leaves) >= 0.5 * max(toks, 1)
 
 
 # ------------------------------------------------------------------ stats

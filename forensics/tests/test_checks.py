@@ -67,6 +67,20 @@ class LoopElevenExemptions(unittest.TestCase):
         self.assertFalse(run("rep.csv", rep)["tripped"])
 
 
+class LoopTwelveProse(unittest.TestCase):
+    def test_numbers_scattered_in_prose_stay_silent(self):
+        import random
+        r = random.Random(3)
+        prose = "".join("Section %d says the limit is $%d, set on day %d of the cycle.\n" % (k, r.choice([100, 500, 1000, 2500, 5000]), r.choice([5, 10, 15, 20, 25, 30])) for k in range(200))
+        self.assertFalse(run("notes.md", prose)["tripped"])
+
+    def test_bare_number_list_still_trips(self):
+        import random
+        r = random.Random(4)
+        lst = "\n".join(str(10 ** r.randint(0, 4) * r.randint(1000, 9999) // 10 ** 3 * 10 + 5 * r.randint(0, 1)) for _ in range(300))
+        self.assertTrue(run("list.txt", lst)["tripped"])
+
+
 class Gating(unittest.TestCase):
     def test_fewer_than_50_numbers_is_silent(self):
         res = run("a.csv", "p,n\n1.7,5\n2.2,4\n")
