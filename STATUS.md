@@ -80,3 +80,6 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 01:10 ET
 - Loop 28 in progress: single-flag ablation arms (layer_ck, layer_pm, layer_fr) added to run_ab.py; 9 tasks x 3 runs at 3-turn cap, output bench/turncap_ablate.jsonl. Next: McNemar vs turncap3 baseline, EVAL_LOG row, commit.
+
+## 2026-10-19 01:45 ET
+- Loop 28 done: ablation at 3-turn cap: checklist 11/27 (p=1.0), progress meter 16/27 (p=0.344), fresh reviewer 0/27 (p=0.000, stop hook needs a turn past the cap) vs baseline 12/27. Logged. Next: uncapped fresh-reviewer test on tasks Sonnet sometimes fails; red-team at loop 29.
