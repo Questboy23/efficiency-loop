@@ -57,9 +57,9 @@ class LoopElevenExemptions(unittest.TestCase):
     def test_code_columns_and_amounts_stay_silent(self):
         import random
         r = random.Random(7)
-        pad = "d1,d2,code,rate\n" + "".join("20040101,99991231,%05d,.0%d\n" % (r.choice([142, 198, 436, 1000, 26446, 26656]), r.randint(1, 9) * 100 + r.randint(0, 9)) for _ in range(400))
+        pad = "d1,d2,code,rate\n" + "".join("20040101,99991231,%05d,%.5f\n" % (r.choice([142, 198, 436, 1000, 26446, 26656]), r.random() / 50) for _ in range(400))
         self.assertFalse(run("pad.csv", pad)["tripped"])
-        idx = "i,v\n" + "".join("%d,%d\n" % (5 * k, r.randint(100, 999)) for k in range(400))
+        idx = ",v\n" + "".join("%d,%.3f\n" % (5 * k + 5 * (k // 37), r.lognormvariate(3, 1.5)) for k in range(400))
         self.assertFalse(run("idx.csv", idx)["tripped"])
         money = "amount\n" + "".join("%d\n" % (r.choice([1, 2, 5, 10, 25]) * 10 ** r.randint(3, 7)) for _ in range(500))
         self.assertFalse(run("money.csv", money)["tripped"])
