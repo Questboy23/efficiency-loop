@@ -138,6 +138,15 @@ class Units(unittest.TestCase):
             res = run("i.csv", rows + "\n99," + bad + "\n")
             self.assertTrue(res["tripped"], bad)
 
+    def test_impossible_not_fired_on_real_shapes(self):
+        # loop 15: rate-labelled dollar columns, heavy-tailed return columns, price-like p_ columns
+        md = "| single | 12% | 22% |\n|---|---|---|\n" + "\n".join("| row%d | %d | %d |" % (i, 11000 + 137 * i, 44725 + 311 * i) for i in range(20)) + "\n"
+        self.assertNotIn("impossible_percentage", tests_hit(run("r.md", md)))
+        ev = "id,strategy_ev_pct\n" + "\n".join("%d,%.3f" % (i, 3.7 * 4.1 ** i) for i in range(1, 25)) + "\n"
+        self.assertNotIn("impossible_percentage", tests_hit(run("e.csv", ev)))
+        age = "id,age_p_min\n" + "\n".join("%d,%.3f" % (i, 15.13 + 3.1 * i) for i in range(1, 60)) + "\n"
+        self.assertNotIn("impossible_probability", tests_hit(run("a.csv", age)))
+
     def test_total_row_must_match(self):
         good = gen.total_table_csv(5)
         self.assertFalse(run("t.csv", good)["tripped"])

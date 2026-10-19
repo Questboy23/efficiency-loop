@@ -375,7 +375,8 @@ def hit(test, col, detail, nums):
 
 
 NOT_PCT = {"roi", "excess", "alpha", "beta", "cagr", "pnl", "profit", "growth", "change", "increase", "return", "returns", "yoy", "diff", "delta",
-           "gain", "ret", "chg", "rate", "markup", "premium", "ratio", "exposure", "leverage", "gross", "net", "utilization"}
+           "gain", "ret", "chg", "rate", "markup", "premium", "ratio", "exposure", "leverage", "gross", "net", "utilization", "ev", "ann", "annualized", "apr", "apy", "upside"}
+RATE_LABEL = re.compile(r"^\s*\d+(\.\d+)?\s*%")
 
 
 def impossible(t, out):
@@ -385,11 +386,11 @@ def impossible(t, out):
         label = t.label(i)
         if toks & {"p", "pval", "pvalue", "prob", "probability"} or {"p", "value"} <= toks:
             bad = [v for v in vals if v < 0 or v > 1]
-            if bad:
+            if bad and len(bad) * 2 <= len(vals):  # mostly outside [0,1] means not a p-value column
                 out.append(hit("impossible_probability", label, "%d values outside [0,1]" % len(bad), bad))
-        elif ("%" in t.headers[i] or toks & {"pct", "percent", "percentage"}) and not toks & NOT_PCT:
+        elif ("%" in t.headers[i] or toks & {"pct", "percent", "percentage"}) and not toks & NOT_PCT and not RATE_LABEL.match(t.headers[i]):
             bad = [v for v in vals if v > 100]
-            if bad:
+            if bad and max(bad) <= 1000:  # unbounded tails are returns, not shares
                 out.append(hit("impossible_percentage", label, "%d percentages above 100" % len(bad), bad))
         if toks & {"sd", "std", "stdev", "stddev", "se", "sem", "variance", "var"} or "std" in t.headers[i].lower():
             bad = [v for v in vals if v < 0]
