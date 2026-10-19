@@ -99,6 +99,12 @@ def main():
     if os.path.exists(fr):
         lines += ["## Forensics checker (unit level)", "", "See `forensics/RESULTS.md`. Headline lines:", ""]
         lines += ["    " + l for l in open(fr).read().splitlines() if l.startswith("| all") or l.startswith("Files with") or "median" in l]
+    lines += ["", "## What did not improve", "",
+              "- Pass rate: every arm passed every task, so the tables show a ceiling and cannot separate the arms.",
+              "- Tokens: the layer arms processed more tokens than baseline, not fewer (see the paired token columns).",
+              "- Forensics hook: it tripped zero times in the benchmark, and the fabricated files it let through held plausible values the nine tests cannot flag.",
+              "- Forensics false positives on real files exceed the 5% target and were tuned on the same files.",
+              "- The layer_improved arm (three flag hooks) was not benchmarked."]
     with open(os.path.join(ROOT, "RESULTS.md"), "w") as f:
         f.write("\n".join(lines) + "\n")
     print("\n".join(lines))
