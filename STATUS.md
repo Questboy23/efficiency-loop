@@ -53,3 +53,7 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 ## 2026-10-19 00:50 ET
 - Loop 21 done: provenance FP on 1826 real transcripts 0/5 qualifying writes, 0/25 unsourced. No code change. forensics/RESULTS.md regenerated (runtime median 114 ms under load avg 21). Logged.
 - Next: non-ceiling task source (SWE-style) for arm comparison.
+
+## 2026-10-19 01:00 ET
+- Loop 22 done: re-eval, no regression (46 tests, synthetic FP 0/100, set 1 held-out 3/86). No code change. Logged.
+- Next: non-ceiling task source (SWE-style) for arm comparison; needs a dataset and Max-plan budget.
