@@ -30,3 +30,6 @@ Updated 2026-10-18 23:50 ET
 - Rerun forensics bench with provenance flag on for a larger FP sample. Harder Polyglot set to escape the ceiling (Max plan, 10 tasks x 3 arms).
 ## Blockers
 - none
+
+## OWNER PRIORITY (23:42)
+Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in order: REVIEW.md item 10 (hard Polyglot set where baseline passes 40-70%), item 11 (pin one model id per table), item 14 (cut layer token overhead), then rerun the arms and regenerate RESULTS.md.
