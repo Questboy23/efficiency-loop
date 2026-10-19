@@ -77,3 +77,6 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 01:10 ET
 - Loop 27 done: layer_improved 0/27 vs baseline 12/27 at 3-turn cap (p=0.000), confounded by the checklist gate spending turns. Logged. Next: ablate the three flags one at a time at the cap; flags stay off by default.
+
+## 2026-10-19 01:10 ET
+- Loop 28 in progress: single-flag ablation arms (layer_ck, layer_pm, layer_fr) added to run_ab.py; 9 tasks x 3 runs at 3-turn cap, output bench/turncap_ablate.jsonl. Next: McNemar vs turncap3 baseline, EVAL_LOG row, commit.

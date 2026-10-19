@@ -95,6 +95,9 @@ def improved_hooks():
 
 
 IMPROVED_ENV = {"EFFICIENCY_LOOP_CHECKLIST": "1", "EFFICIENCY_LOOP_PROGRESS_METER": "1", "EFFICIENCY_LOOP_FRESH_REVIEWER": "1"}
+# Single-flag ablation arms: each turns on one improvement.
+ABLATION_ENV = {"layer_ck": {"EFFICIENCY_LOOP_CHECKLIST": "1"}, "layer_pm": {"EFFICIENCY_LOOP_PROGRESS_METER": "1"},
+                "layer_fr": {"EFFICIENCY_LOOP_FRESH_REVIEWER": "1"}}
 
 
 def child_env():
@@ -105,7 +108,7 @@ def child_env():
     return env
 
 
-def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=False, timeout=900, forensics=False, extra_env=None, improved=False):
+def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=False, timeout=900, forensics=False, extra_env=None, improved=False, flag_env=None):
     cmd = ["claude"]
     if bare:
         cmd.append("--bare")
@@ -114,9 +117,9 @@ def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=F
     settings = {"env": {"ANTHROPIC_BASE_URL": "https://api.anthropic.com"}}
     if forensics:
         settings["hooks"] = FORENSICS_HOOK
-    if improved:
+    if improved or flag_env:
         settings["hooks"] = improved_hooks()
-        extra_env = {**IMPROVED_ENV, **(extra_env or {})}
+        extra_env = {**(flag_env or IMPROVED_ENV), **(extra_env or {})}
     cmd += ["--settings", json.dumps(settings)]
     if layer_file:
         cmd += ["--append-system-prompt-file", str(layer_file)]
@@ -216,7 +219,8 @@ def main():
     a = ap.parse_args()
 
     layers = {"baseline": None, "layer": HERE / "efficiency-layer.md", "layer_rewrite": HERE / "efficiency-layer.md",
-              "layer_forensics": HERE / "efficiency-layer.md", "layer_lite": HERE / "efficiency-layer-lite.md", "layer_improved": HERE / "efficiency-layer.md"}
+              "layer_forensics": HERE / "efficiency-layer.md", "layer_lite": HERE / "efficiency-layer-lite.md", "layer_improved": HERE / "efficiency-layer.md",
+              **{k: HERE / "efficiency-layer.md" for k in ABLATION_ENV}}
     for spec in a.extra_arm:
         name, path = spec.split("=", 1)
         layers[name] = Path(path).resolve()
@@ -264,7 +268,7 @@ def main():
             if new:
                 prompt = new
         res = call_with_retry(prompt, wd, layer_file=layers[arm], model=a.model, max_turns=a.max_turns,
-                              bare=a.bare, timeout=a.timeout, forensics=(arm == "layer_forensics"), improved=(arm == "layer_improved"))
+                              bare=a.bare, timeout=a.timeout, forensics=(arm == "layer_forensics"), improved=(arm == "layer_improved"), flag_env=ABLATION_ENV.get(arm))
         # An infrastructure error is not graded as a task failure, but a timeout is recorded as a failure.
         valid_run = ("error" not in res or res["error"] == "timeout") and not res.get("is_error", False)
         res["passed"] = grade(task, wd) if valid_run and res.get("error") != "timeout" else False
