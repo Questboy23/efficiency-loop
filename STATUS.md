@@ -74,3 +74,6 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 01:10 ET
 - Loop 27 in progress: untested layer_improved arm on the turn-capped set (9 tasks x 3 runs, Sonnet 5.5), output bench/turncap_improved.jsonl, log bench/turncap_improved.log. Next: McNemar vs turncap3 baseline via bench/turncap_mcnemar.py, EVAL_LOG row, commit.
+
+## 2026-10-19 01:10 ET
+- Loop 27 done: layer_improved 0/27 vs baseline 12/27 at 3-turn cap (p=0.000), confounded by the checklist gate spending turns. Logged. Next: ablate the three flags one at a time at the cap; flags stay off by default.
