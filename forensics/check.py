@@ -287,7 +287,7 @@ def benford(col_vals, label, out, header=""):
     exp = [math.log10(1 + 1.0 / d) for d in range(1, 10)]
     mad = sum(abs(o / n - e) for o, e in zip(obs, exp)) / 9
     p = chi_sq_p(chi_sq(obs, exp), 8)
-    out.append(dict(test="benford_first_digit", col=label, p=p, gate=mad > BENFORD_MAD,
+    out.append(dict(test="benford_first_digit", col=label, p=p, gate=mad > BENFORD_MAD, mad=mad,
                     detail="n=%d, share of leading 1 = %.1f%% (expected 30.1%%), MAD=%.4f (limit %.3f)"
                            % (n, 100.0 * obs[0] / n, mad, BENFORD_MAD),
                     nums=[]))
@@ -522,6 +522,9 @@ def duplicates(t, out):
 
 
 # ------------------------------------------------------------------- main
+PAIR_MAD = 0.05
+
+
 def analyze(path):
     tables, leaves = load(path)
     nums = sum(sum(1 for v in t.vals[i] if v is not None) for t in tables for i in t.numeric) + len(leaves)
@@ -559,7 +562,14 @@ def analyze(path):
     # A single digit-statistic flag is weak (rounded exports, ratios and bounded
     # quantities all trip them), so statistical tests need two flags on one column.
     trips = [x for x in f if x["p"] is None and x["gate"]]
-    trips += [x for x in hot if percol[x["col"]] >= 2 or x["test"] == "round_number_excess"]
+    # Benford plus last-digit alone is also weak: bounded or rounded real columns (rates, prices)
+    # trip both together. That pair needs a first-digit MAD of PAIR_MAD or more (uniform leading digits give 0.057).
+    def strong(c):
+        fams = {fam(x) for x in hot if x["col"] == c}
+        if fams == {"benford", "last"}:
+            return max(x.get("mad", 0) for x in hot if x["col"] == c) >= PAIR_MAD
+        return len(fams) >= 2
+    trips += [x for x in hot if strong(x["col"]) or x["test"] == "round_number_excess"]
     res["findings"] = trips
     res["tripped"] = bool(trips)
     res["score"] = min([x["p"] for x in trips if x["p"] is not None] + [1.0])

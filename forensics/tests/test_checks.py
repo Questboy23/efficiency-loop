@@ -169,3 +169,15 @@ class Hook(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PairRule(unittest.TestCase):
+    def test_benford_plus_last_digit_needs_large_mad(self):
+        self.assertGreaterEqual(check.PAIR_MAD, 0.04)
+        hits = 0
+        for s in range(200, 220):
+            name, text, _ = gen.fab_uniform_digits(s)
+            p = os.path.join(tempfile.mkdtemp(), name)
+            open(p, "w").write(text)
+            hits += check.analyze(p)["tripped"]
+        self.assertGreaterEqual(hits, 19)

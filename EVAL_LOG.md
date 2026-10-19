@@ -8,3 +8,4 @@
 
 Decision: the three flags stay off by default. layer_improved costs 75.6% more tokens with no pass-rate gain on this task set, so it is not recommended until a harder task set shows a benefit.
 Next loop target: forensics false positives (weakest metric), measured on a frozen held-out file list.
+| 2026-10-18 | forensics FP, frozen split (forensics/heldout.py, md5(path) odd = held-out) | held-out 6/85 = 7.1%, dev 0/99 | held-out 8/85 = 9.4%, dev 1/99 | 184 real CSVs on this machine | Benford+last-digit pair now needs first-digit MAD >= 0.05; synthetic detection 219/220 (was 220/220), synthetic FP 0/100 per shape set. Still above 5% target; held-out trips not inspected per file, only counted by test (benford/last-digit dominate). Kept.
