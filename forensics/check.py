@@ -187,6 +187,7 @@ def load(path):
         leaves = [m for m in TEXT_NUM_RE.findall(body)
                   if not re.match(r"^(19|20)\d\d$", m) and parse_num(m) is not None]
     leaves = [m for m in leaves if sum(c.isdigit() for c in m) <= 15]   # longer digit strings are ids or hashes
+    leaves = [m for m in leaves if not (m.isdigit() and len(m) in (10, 13) and m[0] in "123")]   # epoch seconds or milliseconds
     if leaves and not leaves_dense(text, leaves):
         leaves = []   # numbers scattered in prose or config (versions, ids, years, prices) are not one sample
     return tables, leaves

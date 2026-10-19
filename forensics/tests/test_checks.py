@@ -361,3 +361,11 @@ class Loop16FalseAlarms(unittest.TestCase):
     def test_all_row_is_not_a_total(self):
         text = "bucket,n\n" + "\n".join("b%d,%d" % (i, 100 + i) for i in range(5)) + "\nall,300\n"
         self.assertNotIn("total_mismatch", tests_hit(run("d.csv", text)))
+
+
+class Loop17FalseAlarms(unittest.TestCase):
+    def test_epoch_timestamps_are_not_benford_sample(self):
+        import random
+        r = random.Random(3)
+        pts = [[1781100000 + 3600 * i, round(0.9 + 5 * r.randint(0, 6) / 1000 + 0.0005 * r.randint(0, 1) * 0, 4)] for i in range(300)]
+        self.assertEqual(tests_hit(run("hist.json", json.dumps({"pts": pts}))), [])
