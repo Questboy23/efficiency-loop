@@ -9,7 +9,8 @@ Example (pilot, ~40 runs):
   python3 run_ab.py --bench polyglot-benchmark/python/exercises/practice \
       --arms baseline,layer --tasks 10 --runs 2
 """
-import argparse, json, os, random, shutil, subprocess, sys, tempfile, time
+import argparse, json, os, random, shutil, subprocess, sys, tempfile, threading, time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -57,12 +58,28 @@ def prepare_workdir(task: Path) -> Path:
     return wd
 
 
-def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=False, timeout=1800):
+FORENSICS_HOOK = {"PostToolUse": [{"matcher": "Write|Edit|MultiEdit", "hooks": [
+    {"type": "command", "command": f'python3 "{HERE}/forensics/hook.py"'}]}]}
+
+
+def child_env():
+    """Max-plan mode: drop every variable that could route the child to the free proxy or a paid key."""
+    env = dict(os.environ)
+    for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"):
+        env.pop(k, None)
+    return env
+
+
+def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=False, timeout=900, forensics=False):
     cmd = ["claude"]
     if bare:
         cmd.append("--bare")
     cmd += ["-p", prompt, "--output-format", "json",
             "--permission-mode", "acceptEdits", "--allowedTools", TOOLS]
+    settings = {"env": {"ANTHROPIC_BASE_URL": "https://api.anthropic.com"}}
+    if forensics:
+        settings["hooks"] = FORENSICS_HOOK
+    cmd += ["--settings", json.dumps(settings)]
     if layer_file:
         cmd += ["--append-system-prompt-file", str(layer_file)]
     if model:
@@ -71,7 +88,7 @@ def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=F
         cmd += ["--max-turns", str(max_turns)]
     t0 = time.time()
     try:
-        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=child_env())
         out, err = r.stdout, r.stderr
     except subprocess.TimeoutExpired:
         return {"error": "timeout", "wall_s": time.time() - t0}
@@ -90,6 +107,7 @@ def call_claude(prompt, cwd, layer_file=None, model=None, max_turns=None, bare=F
                      + (usage.get("cache_creation_input_tokens") or 0),
         "tokens_out": usage.get("output_tokens") or 0,
         "is_error": data.get("is_error"),
+        "model_served": sorted((data.get("modelUsage") or {}).keys()),
         "result_text": (data.get("result") or "")[-600:],
     })
     return res
@@ -120,6 +138,8 @@ def call_with_retry(prompt, cwd, **kw):
     """
     res = call_claude(prompt, cwd, **kw)
     attempts = 1
+    if res.get('error') == 'timeout':
+        return res
     while (res.get("is_error") or "error" in res) and attempts < 2:
         wait = 60 * attempts
         print(f"    [retry] run failed (is_error={res.get('is_error')}, err={res.get('error')}), "
@@ -143,10 +163,13 @@ def main():
     ap.add_argument("--bare", action="store_true", help="isolated runs; needs ANTHROPIC_API_KEY, not your subscription")
     ap.add_argument("--sleep", type=float, default=0, help="seconds between runs, to spread usage across limit windows")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--workers", type=int, default=1, help="runs in parallel")
+    ap.add_argument("--timeout", type=int, default=900, help="seconds per run; a timeout is recorded as a failure")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
-    layers = {"baseline": None, "layer": HERE / "efficiency-layer.md", "layer_rewrite": HERE / "efficiency-layer.md"}
+    layers = {"baseline": None, "layer": HERE / "efficiency-layer.md", "layer_rewrite": HERE / "efficiency-layer.md",
+              "layer_forensics": HERE / "efficiency-layer.md"}
     for spec in a.extra_arm:
         name, path = spec.split("=", 1)
         layers[name] = Path(path).resolve()
@@ -157,7 +180,7 @@ def main():
 
     tasks = find_tasks(Path(a.bench))
     if a.tasks:
-        tasks = tasks[: a.tasks]
+        tasks = sorted(random.Random(a.seed).sample(tasks, min(a.tasks, len(tasks))), key=lambda t: t.name)  # fixed-seed pick
     if not tasks:
         sys.exit("no tasks found; point --bench at python/exercises/practice")
 
@@ -176,39 +199,45 @@ def main():
           f"({len(done)} already done)")
     rewrite_instr = (HERE / "rewrite-prompt.md").read_text()
 
-    for n, (task, arm, i) in enumerate(jobs, 1):
-        if (task.name, arm, i) in done:
-            continue
+    lock = threading.Lock()
+
+    def one(n, task, arm, i):
         prompt = task_prompt(task)
-        if a.dry_run:
-            print(f"[dry] {task.name} | {arm} | run {i} | layer={layers[arm]} | prompt {len(prompt)} chars")
-            continue
         wd = prepare_workdir(task)
         rec = {"task": task.name, "arm": arm, "run": i, "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}
         rewrite_cost = 0.0
         if arm == "layer_rewrite":
-            rw = call_claude(rewrite_instr + "\n" + prompt, wd, model=a.model, bare=a.bare)
+            rw = call_claude(rewrite_instr + "\n" + prompt, wd, model=a.model, bare=a.bare, timeout=a.timeout)
             new = (rw.get("result_text") or "").strip()
             rewrite_cost = rw.get("cost_usd") or 0.0
             rec["rewrite_ok"] = bool(new)
             if new:
                 prompt = new
-        res = call_with_retry(prompt, wd, layer_file=layers[arm], model=a.model,
-                              max_turns=a.max_turns, bare=a.bare)
-        # Fix: correctly handle is_error as an execution failure, not a task failure.
-        valid_run = "error" not in res and not res.get("is_error", False)
-        res["passed"] = grade(task, wd) if valid_run else False
+        res = call_with_retry(prompt, wd, layer_file=layers[arm], model=a.model, max_turns=a.max_turns,
+                              bare=a.bare, timeout=a.timeout, forensics=(arm == "layer_forensics"))
+        # An infrastructure error is not graded as a task failure, but a timeout is recorded as a failure.
+        valid_run = ("error" not in res or res["error"] == "timeout") and not res.get("is_error", False)
+        res["passed"] = grade(task, wd) if valid_run and res.get("error") != "timeout" else False
         if res.get("cost_usd") is not None:
             res["cost_usd"] = round(res["cost_usd"] + rewrite_cost, 5)
         res.pop("result_text", None)
         rec.update(res)
-        with open(a.out, "a") as f:
-            f.write(json.dumps(rec) + "\n")
-        print(f"[{n}/{len(jobs)}] {task.name:22s} {arm:14s} run {i}  passed={rec['passed']}  "
-              f"cost={rec.get('cost_usd')}  turns={rec.get('num_turns')}")
+        with lock:
+            with open(a.out, "a") as f:
+                f.write(json.dumps(rec) + "\n")
+            print(f"[{n}/{len(jobs)}] {task.name:22s} {arm:16s} run {i}  passed={rec['passed']}  "
+                  f"wall={rec.get('wall_s')}  turns={rec.get('num_turns')}  err={rec.get('error') or rec.get('is_error')}", flush=True)
         shutil.rmtree(wd, ignore_errors=True)
         if a.sleep:
             time.sleep(a.sleep)
+
+    todo = [(n, t, arm, i) for n, (t, arm, i) in enumerate(jobs, 1) if (t.name, arm, i) not in done]
+    if a.dry_run:
+        for n, t, arm, i in todo:
+            print(f"[dry] {t.name} | {arm} | run {i} | layer={layers[arm]}")
+        return
+    with ThreadPoolExecutor(max_workers=max(1, a.workers)) as ex:
+        list(ex.map(lambda x: one(*x), todo))
 
 
 if __name__ == "__main__":
