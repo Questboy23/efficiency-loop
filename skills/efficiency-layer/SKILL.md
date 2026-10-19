@@ -1,6 +1,6 @@
 ---
 name: efficiency-layer
-description: Efficiency layer v1 - working rules for task completion
+description: Working rules for coding tasks that cut wasted turns and tokens: intake checklist, search before reading, verify before claiming done. Use at the start of any multi-step coding task.
 ---
 
 # Efficiency layer v1

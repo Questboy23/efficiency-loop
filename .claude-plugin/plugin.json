@@ -1,9 +1,8 @@
 {
   "name": "efficiency-loop",
   "version": "1.0.0",
-  "description": "Efficiency harness for Claude Code",
-  "author": {
-    "name": "Reed Ostrov",
-    "email": "reedhomefolder@example.com"
-  }
+  "description": "Efficiency layer skill plus a forensics tripwire that blocks fabricated or hand-typed data",
+  "author": { "name": "Reed Ostrov" },
+  "license": "MIT",
+  "repository": "https://github.com/Questboy23/efficiency-loop"
 }

@@ -8,13 +8,14 @@ To install the harness as a Claude Code plugin:
 
 1. Clone this repository to your local machine.
 2. Ensure you have Claude Code installed.
-3. Run the following command from the repository root:
+3. Validate, then try it for one session without installing:
 
    ```bash
-   claude plugin install .
+   claude plugin validate .
+   claude --plugin-dir .
    ```
 
-4. The plugin will be installed and active for all Claude Code sessions.
+4. Disable the forensics hook with `EFFICIENCY_LOOP_FORENSICS=off`. Data never leaves the machine: `check.py` and `hook.py` are standard-library Python and make no network calls.
 
 ## Components
 
