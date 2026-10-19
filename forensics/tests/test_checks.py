@@ -70,9 +70,10 @@ class LoopElevenExemptions(unittest.TestCase):
 class LoopTwelveProse(unittest.TestCase):
     def test_numbers_scattered_in_prose_stay_silent(self):
         import random
-        r = random.Random(3)
-        prose = "".join("Section %d says the limit is $%d, set on day %d of the cycle.\n" % (k, r.choice([100, 500, 1000, 2500, 5000]), r.choice([5, 10, 15, 20, 25, 30])) for k in range(200))
-        self.assertFalse(run("notes.md", prose)["tripped"])
+        for seed in (0, 1, 4):   # all three tripped before the loose-number density rule
+            r = random.Random(seed)
+            prose = "".join("Item %d: budget %d.5 kg, cap %d.5 kg.\n" % ((k % 7,) + tuple(r.randint(1, 9) * 10 ** r.randint(2, 5) + r.randint(0, 9) * 5 for _ in range(2))) for k in range(300))
+            self.assertFalse(run("notes.md", prose)["tripped"])
 
     def test_bare_number_list_still_trips(self):
         import random
