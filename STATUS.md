@@ -83,3 +83,7 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 01:45 ET
 - Loop 28 done: ablation at 3-turn cap: checklist 11/27 (p=1.0), progress meter 16/27 (p=0.344), fresh reviewer 0/27 (p=0.000, stop hook needs a turn past the cap) vs baseline 12/27. Logged. Next: uncapped fresh-reviewer test on tasks Sonnet sometimes fails; red-team at loop 29.
+
+## 2026-10-19 01:55 ET
+- Loop 29 done: report.py merges layer_improved and ablation arms into the turn-capped table (generated, RESULTS.md forensics exit 0); re-eval and red-team, no regression (46 tests, held-out 3/86, red-team 0/80 stat, 120/120 prov). Logged.
+- Next: uncapped fresh-reviewer test needs a task Sonnet fails; none on disk. Candidates: SWE-style dataset from owner.

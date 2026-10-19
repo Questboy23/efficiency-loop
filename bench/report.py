@@ -98,7 +98,7 @@ def forensics(rows):
 
 def turncap(rows):
     out = ["## Turn-capped hard set (--max-turns 3, 9 tasks x 3 runs, Sonnet 5.5)", "",
-           "A run that hits the 3-turn cap is recorded as is_error and counts as a failure. All runs pooled; McNemar pairs are (task, run). Same numbers as `uv run python bench/turncap_mcnemar.py bench/turncap3.jsonl`.", "",
+           "A run that hits the 3-turn cap is recorded as is_error and counts as a failure. All runs pooled; McNemar pairs are (task, run). Inputs: `bench/turncap3.jsonl`, `bench/turncap_improved.jsonl`, `bench/turncap_ablate.jsonl`. Baseline pass count is also reproduced by `uv run python bench/turncap_mcnemar.py bench/turncap3.jsonl`. layer_ck, layer_pm, layer_fr are single-flag ablations of layer_improved (checklist, progress meter, fresh reviewer); the fresh reviewer needs a turn past the cap, so its 0 reflects the cap.", "",
            "| arm | pass | mean tokens (in+out) | capped (is_error) |", "|---|---|---|---|"]
     cell = {(r["task"], r["arm"], r["run"]): r for r in rows if r.get("model_served") == ["claude-sonnet-5-5"]}
     arms = sorted({k[1] for k in cell})
@@ -124,7 +124,10 @@ def main():
         lines += polyglot(load("bench/hard_set.jsonl"), "## Hard set: 10 costliest baseline tasks (7 Python, 3 JavaScript)") + [
             "", "Selection: no Polyglot task failed or exceeded 3 minutes for baseline (Python 34/34, JavaScript 49/49, `bench/screen_python.jsonl`, `bench/screen_js.jsonl`), so the 10 tasks with the most baseline tokens were used. Picking by baseline cost favors the other arms through regression to the mean.", ""]
     if os.path.exists("bench/turncap3.jsonl"):
-        lines += turncap(load("bench/turncap3.jsonl")) + [""]
+        tc = load("bench/turncap3.jsonl")
+        for extra in ("bench/turncap_improved.jsonl", "bench/turncap_ablate.jsonl"):
+            if os.path.exists(extra): tc += load(extra)
+        lines += turncap(tc) + [""]
     lines += forensics(load("bench/forensics_runs.jsonl")) + [""]
     fr = os.path.join(ROOT, "forensics", "RESULTS.md")
     if os.path.exists(fr):
@@ -133,6 +136,7 @@ def main():
     lines += ["", "## What did not improve", "",
               "- Pass rate: every arm passed every task in both sets (Python 34/34 and JavaScript 49/49 for baseline), so the tables show a ceiling and cannot separate the arms.",
               "- Turn-capped hard set (3 turns, 27 runs per arm): pass 12/27 baseline, 12/27 layer, 13/27 layer_forensics, McNemar p=1.0 for both. The cap escapes the ceiling but no arm differs.",
+              "- Ablation at the 3-turn cap: no flag beats baseline at p<0.05 (progress meter 16/27 vs 12/27, p=0.344); the fresh reviewer arm and layer_improved fail every run because the stop hook needs turns past the cap. See the turn-capped table.",
               "- Tokens: every layer arm processed more tokens than baseline on both sets (hard set: +10% to +17%), none fewer.",
               "- Layer profile (hard set, `bench/hard_set.jsonl`): tokens per turn were 38.9k baseline, 42.3k layer v1, 40.0k layer_lite. The shorter layer cut the per-turn context but added 0.7 turns, so total tokens did not fall.",
               "- Forensics hook in the benchmark: see the forensics table above. It trips on invented survey data but the scorer cannot tell sourced from invented numbers.",
