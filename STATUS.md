@@ -96,3 +96,9 @@ Stop tuning forensics false positives (held-out FP is already 0.4%). Next, in or
 
 ## 2026-10-19 02:30 ET
 - Loop 31 done: 6-turn cap baseline 18/18, layer_pm 18/18, layer_fr 14/18 (p=0.125), tokens +8.7% / +6.7%. No benefit from either flag; baseline back at ceiling. Logged. Next: 4-5 turn cap is the only separating range; otherwise blocked on a non-ceiling task source. Red-team at loop 34.
+
+## 2026-10-19 02:00 ET
+- Loop 32 in progress: 4-turn cap (the only range that separated arms), arms baseline/layer_pm, 9 tasks x 2 runs, output bench/turncap4.jsonl, log bench/turncap4.log. Next: bench/turncap_mcnemar.py, EVAL_LOG row, commit.
+
+## 2026-10-19 02:10 ET
+- Loop 32 done: 4-turn cap baseline 17/18 vs layer_pm 15/18 (p=0.625). Baseline near ceiling at 4 and 6 turns; no cap separates arms. Logged. Next: red-team at loop 34; blocked on a non-ceiling task source.
