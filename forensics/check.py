@@ -486,6 +486,33 @@ def too_perfect(t, out):
                                [c for c in raws if c.strip().endswith("." + top)]))
 
 
+def ordering(t, out):
+    """Rows where a stated high is below open/close/low, or max/min fall on the wrong side of mean/median."""
+    def col(*names):
+        for i in t.numeric:
+            if "_".join(tokens(t.headers[i])) in names:
+                return i
+        return None
+    rules = [("high", ["high"], ["open", "close", "low"], "ge"), ("low", ["low"], ["open", "close", "high"], "le"),
+             ("max", ["max", "maximum", "max_score"], ["mean", "median", "min", "avg"], "ge"),
+             ("min", ["min", "minimum", "min_score"], ["mean", "median", "max", "avg"], "le")]
+    for name, tops, others, op in rules:
+        a = col(*tops)
+        if a is None:
+            continue
+        for oname in others:
+            b = col(oname)
+            if b is None:
+                continue
+            bad = [r for r in range(len(t.rows)) if t.vals[a][r] is not None and t.vals[b][r] is not None
+                   and (t.vals[a][r] < t.vals[b][r] - 1e-9 if op == "ge" else t.vals[a][r] > t.vals[b][r] + 1e-9)]
+            if len(bad) >= 2:
+                out.append(hit("ordering_violation", t.label(a),
+                               "%d rows have %s %s than %s (e.g. %s vs %s)" % (len(bad), name, "below" if op == "ge" else "above", oname,
+                                                                              t.cols[a][bad[0]].strip(), t.cols[b][bad[0]].strip()),
+                               [t.cols[a][r].strip() for r in bad]))
+
+
 def duplicates(t, out):
     n = len(t.rows)
     if n < 10:
@@ -538,6 +565,7 @@ def analyze(path):
         arithmetic(t, f)
         too_perfect(t, f)
         duplicates(t, f)
+        ordering(t, f)
         for i in t.numeric:
             benford(t.vals[i], t.label(i), f, t.headers[i])
             last_digit(t.cols[i], t.label(i), f, t.headers[i])

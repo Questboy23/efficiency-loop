@@ -128,6 +128,31 @@ def fab_json(seed):
     return "fake.json", json.dumps(rows), ("round", "impossible")
 
 
+def fab_ohlc(seed):
+    r = random.Random(seed)
+    rows = ["day,open,high,low,close,volume"]
+    px = 100.0
+    for i in range(40):
+        o = px * r.uniform(0.98, 1.02); c = o * r.uniform(0.97, 1.03)
+        h = max(o, c) * r.uniform(1.0, 1.02); lo = min(o, c) * r.uniform(0.98, 1.0)
+        if i % 5 == 2:
+            h = min(o, c) * 0.995      # hand-typed high below the open/close
+        rows.append("%d,%.2f,%.2f,%.2f,%.2f,%d" % (i, o, h, lo, c, r.randint(10**5, 9 * 10**6)))
+        px = c
+    return "ohlc.csv", "\n".join(rows) + "\n", ("ordering",)
+
+
+def real_ohlc_csv(seed):
+    r = random.Random(seed)
+    rows = ["day,open,high,low,close,volume"]
+    px = 100.0
+    for i in range(60):
+        o = px * r.uniform(0.98, 1.02); c = o * r.uniform(0.97, 1.03)
+        rows.append("%d,%.2f,%.2f,%.2f,%.2f,%d" % (i, o, max(o, c) * r.uniform(1.0, 1.02), min(o, c) * r.uniform(0.98, 1.0), c, int(r.lognormvariate(13, 1))))
+        px = c
+    return "\n".join(rows) + "\n"
+
+
 FABRICATED = [fab_uniform_digits, fab_round, fab_grim, fab_duplicates, fab_impossible,
-              fab_impossible_pct, fab_total, fab_step, fab_pvals, fab_decimals, fab_json]
-REAL_SHAPED = [lognormal_csv, pareto_csv, stats_table_md, total_table_csv]
+              fab_impossible_pct, fab_total, fab_step, fab_pvals, fab_decimals, fab_json, fab_ohlc]
+REAL_SHAPED = [lognormal_csv, pareto_csv, stats_table_md, total_table_csv, real_ohlc_csv]
