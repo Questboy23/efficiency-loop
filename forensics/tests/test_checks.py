@@ -183,6 +183,34 @@ class PairRule(unittest.TestCase):
         self.assertGreaterEqual(hits, 19)
 
 
+class BashHook(unittest.TestCase):
+    def run_bash(self, cmd, text):
+        d = tempfile.mkdtemp()
+        open(os.path.join(d, "survey.csv"), "w").write(text)
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "forensics", "hook.py")],
+                           input=json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": d}),
+                           capture_output=True, text=True)
+        return r.returncode, r.stderr
+
+    def rows(self, head=""):
+        import random
+        r = random.Random(5)
+        return head + "id,a,b,c\n" + "\n".join("%d,%d,%d,%d" % (i, r.randint(1, 5), r.randint(1, 5), r.randint(1, 5)) for i in range(40)) + "\n"
+
+    def test_random_generator_bash_trips(self):
+        code, err = self.run_bash("python3 -c 'import random; random.randint(1,5); open(\"survey.csv\",\"w\").write(...)'", self.rows())
+        self.assertEqual(code, 2)
+        self.assertIn("random generator", err)
+
+    def test_labeled_command_passes(self):
+        code, _ = self.run_bash("python3 -c 'import random; random.randint(1,5); open(\"survey.csv\",\"w\").write(...)  # illustrative'", self.rows())
+        self.assertEqual(code, 0)
+
+    def test_plain_command_passes(self):
+        code, _ = self.run_bash("ls", self.rows())
+        self.assertEqual(code, 0)
+
+
 class Provenance(unittest.TestCase):
     def run_hook(self, csv_text, tool_out):
         d = tempfile.mkdtemp()
@@ -204,6 +232,24 @@ class Provenance(unittest.TestCase):
         code, err = self.run_hook(self.table(), "nothing relevant 12")
         self.assertEqual(code, 2)
         self.assertIn("provenance", err)
+
+    def likert(self, header="id,q1,q2,q3,q4,q5\n"):
+        import random
+        r = random.Random(3)
+        return header + "\n".join("%d,%s" % (i, ",".join(str(r.randint(1, 5)) for _ in range(5))) for i in range(60)) + "\n"
+
+    def test_unsourced_small_int_table_trips(self):
+        code, err = self.run_hook(self.likert(), "ok")
+        self.assertEqual(code, 2)
+        self.assertIn("provenance", err)
+
+    def test_small_int_table_with_numbers_in_context_passes(self):
+        code, _ = self.run_hook(self.likert(), self.likert())
+        self.assertEqual(code, 0)
+
+    def test_labeled_small_int_table_passes(self):
+        code, _ = self.run_hook(self.likert("# illustrative data\nid,q1,q2,q3,q4,q5\n"), "ok")
+        self.assertEqual(code, 0)
 
     def test_numbers_from_tool_output_pass(self):
         code, _ = self.run_hook(self.table(), self.table())

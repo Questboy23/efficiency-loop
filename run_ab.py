@@ -58,7 +58,7 @@ def prepare_workdir(task: Path) -> Path:
     return wd
 
 
-FORENSICS_HOOK = {"PostToolUse": [{"matcher": "Write|Edit|MultiEdit", "hooks": [
+FORENSICS_HOOK = {"PostToolUse": [{"matcher": "Write|Edit|MultiEdit|Bash", "hooks": [
     {"type": "command", "command": f'python3 "{HERE}/forensics/hook.py"'}]}]}
 
 

@@ -19,7 +19,7 @@ def result_text(r):
 
 
 def scan(tp):
-    seen, rows = "", []
+    seen, rows, uns = "", [], []
     with open(tp, errors="replace") as f:
         for line in f:
             try:
@@ -45,21 +45,29 @@ def scan(tp):
                     p = (ti.get("file_path") or "").lower()
                     if p.endswith(hook.DATA_EXT):
                         mine = hook.num_set(hook.edited_text(ti))
-                        if len(mine) >= hook.PROV_MIN:
+                        txt = hook.edited_text(ti)
+                        if len(mine) < hook.PROV_MIN:
+                            if len(hook.ANY_NUM.findall(txt)) >= hook.UNS_MIN:
+                                uns.append(hook.unsourced(txt, seen))
+                        elif len(mine) >= hook.PROV_MIN:
                             s = hook.num_set(seen)
                             rows.append((p, len(mine), len(mine & s) / len(mine)))
-    return rows
+    return rows, uns
 
 
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/.claude/projects")
     files = glob.glob(os.path.join(root, "*", "*.jsonl"))
-    rows = []
+    rows, uns = [], []
     for tp in files:
-        rows += scan(tp)
+        r, u = scan(tp)
+        rows += r
+        uns += u
     trips = [r for r in rows if r[2] < hook.PROV_SEEN]
     print("transcripts %d, qualifying data writes %d, provenance trips %d (%.1f%%)" % (
         len(files), len(rows), len(trips), 100 * len(trips) / max(1, len(rows))))
+    print("low-digit data writes (>= %d numbers) %d, unsourced trips %d (%.1f%%)" % (
+        hook.UNS_MIN, len(uns), sum(uns), 100 * sum(uns) / max(1, len(uns))))
     for p, n, s in trips[:15]:
         print("  trip: %s n=%d seen=%.2f" % (os.path.basename(p), n, s))
 
