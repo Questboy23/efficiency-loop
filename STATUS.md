@@ -1,11 +1,13 @@
 # Efficiency Loop Status
 
-- [ ] GOAL A: forensics/check.py (in progress)
-- [ ] GOAL B: Package plugin (next)
-- [ ] GOAL C: IMPROVEMENTS.md (next)
-- [x] GOAL D1: Fix run_ab.py (in progress)
+Updated 2026-10-18 21:00 ET
 
-2026-10-18: Investigating why `run_ab.py` failed the pilot run. Currently running a single `affine-cipher` task to catch the error.
-
-## REVIEW FROM OWNER (17:30)
-Read REVIEW.md now and do every item before anything else.
+## Done
+- REVIEW.md items 1-9: check.py rewritten per column (9 tests, Holm), hook.py, 17 tests pass, RESULTS in forensics/RESULTS.md (real-file FP 6.6%, above the 5% target, tuned not held out), plugin validates.
+- GOAL A, GOAL B.
+## In progress
+- GOAL C: IMPROVEMENTS.md exists; top 3 flags not yet verified.
+## Next
+- GOAL D benchmarks on Sonnet via Max plan (10 tasks x 3 arms), forensics bench, RESULTS.md via bench/report.py.
+## Blockers
+- none
