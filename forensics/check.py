@@ -349,7 +349,7 @@ def hit(test, col, detail, nums):
 
 
 NOT_PCT = {"roi", "excess", "alpha", "beta", "cagr", "pnl", "profit", "growth", "change", "increase", "return", "returns", "yoy", "diff", "delta",
-           "gain", "ret", "chg", "rate", "markup", "premium", "ratio"}
+           "gain", "ret", "chg", "rate", "markup", "premium", "ratio", "exposure", "leverage", "gross", "net", "utilization"}
 
 
 def impossible(t, out):
@@ -489,7 +489,7 @@ def too_perfect(t, out):
                 out.append(hit("constant_step", t.label(i),
                                "all %d consecutive differences equal %s" % (len(diffs), round(diffs[0], 6)), vals[:6]))
         ints = [int(v) for v in vals if v == int(v)]
-        if len(ints) == len(vals) >= 30 and len(set(ints)) <= 12 and not toks & (EXCL_STEP | {"hour", "minute", "dow", "weekday", "k", "fold", "seed", "group", "batch", "cluster", "level", "trial", "rep", "replicate", "sample"}):
+        if len(ints) == len(vals) >= 30 and len(set(ints)) <= 12 and max(abs(v) for v in ints) <= 20 and not toks & (EXCL_STEP | {"hour", "minute", "dow", "weekday", "k", "fold", "seed", "group", "batch", "cluster", "level", "trial", "rep", "replicate", "sample"}):
             for per in range(2, 13):
                 if len(ints) >= 3 * per and len(set(ints[:per])) == per and all(ints[k] == ints[k % per] for k in range(len(ints))) \
                         and not _sweep_partner(t, i):
@@ -525,7 +525,7 @@ def ordering(t, out):
                 continue
             bad = [r for r in range(len(t.rows)) if t.vals[a][r] is not None and t.vals[b][r] is not None
                    and (t.vals[a][r] < t.vals[b][r] - 1e-9 if op == "ge" else t.vals[a][r] > t.vals[b][r] + 1e-9)]
-            if len(bad) >= 2:
+            if len(bad) >= 2 and len(bad) >= 0.02 * len(t.rows):   # real price feeds carry a few bad rows
                 out.append(hit("ordering_violation", t.label(a),
                                "%d rows have %s %s than %s (e.g. %s vs %s)" % (len(bad), name, "below" if op == "ge" else "above", oname,
                                                                               t.cols[a][bad[0]].strip(), t.cols[b][bad[0]].strip()),
@@ -562,7 +562,7 @@ def duplicates(t, out):
         vals = [c.strip() for c, v in zip(t.cols[i], t.vals[i]) if v is not None and len(sig_digits(c)) >= 5 and "." in c]
         if len(vals) >= 20:
             top, cnt = Counter(vals).most_common(1)[0]
-            if cnt >= 6 and 0.4 <= cnt / len(vals) <= 0.7:   # a fully constant column is a parameter, not a copy
+            if cnt >= 6 and 0.4 <= cnt / len(vals) <= 0.7 and float(top) != int(float(top)):   # a fully constant column is a parameter, not a copy
                 out.append(hit("repeated_identical_value", t.label(i),
                                "%s appears %d times in %d values" % (top, cnt, len(vals)), [top] * 3))
 
@@ -586,6 +586,9 @@ def analyze(path):
         duplicates(t, f)
         ordering(t, f)
         for i in t.numeric:
+            nv = [v for v in t.vals[i] if v is not None]
+            if len(nv) >= 200 and len(set(nv)) < 0.1 * len(nv):
+                continue   # few distinct values in a long column: categories or price points, digit tests do not apply
             benford(t.vals[i], t.label(i), f, t.headers[i])
             last_digit(t.cols[i], t.label(i), f, t.headers[i])
             round_excess(t.cols[i], t.label(i), f, t.headers[i])

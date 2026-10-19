@@ -129,6 +129,33 @@ class Units(unittest.TestCase):
         return p
 
 
+class RealDataQuirks(unittest.TestCase):
+    """Loop 10: patterns seen in real files on disk that must not trip."""
+    def test_leverage_percent_above_100(self):
+        rows = "\n".join("%d,%.1f" % (i, 60 + (i * 7) % 90) for i in range(60))
+        self.assertFalse(run("a.csv", "day,gross_exposure_pct\n" + rows + "\n")["tripped"])
+
+    def test_long_cycle_of_large_ints_is_a_sweep(self):
+        cyc = [544, 1052, 7094, 15684, 25535, 36522, 47702, 59000]
+        rows = "\n".join("%d,%.3f" % (cyc[i % 8], 0.1 * i + (i * i % 7) / 13) for i in range(48))
+        self.assertFalse(run("a.csv", "history_rows,score\n" + rows + "\n")["tripped"])
+
+    def test_constant_start_value_is_not_a_copy(self):
+        rows = "\n".join("%.2f,%d" % (100.0 if i % 2 else 100 + i * 1.37, i) for i in range(60))
+        res = run("a.csv", "bankroll_before,n\n" + rows + "\n")
+        self.assertNotIn("repeated_identical_value", [x["test"] for x in res["findings"]])
+
+    def test_few_bad_ohlc_rows_in_long_feed(self):
+        rows = []
+        for i in range(400):
+            o = 100 + i * 0.1
+            hi, lo = o + 1.5, o - 1.5
+            if i in (50, 200):
+                hi = o - 0.5
+            rows.append("%d,%.2f,%.2f,%.2f,%.2f" % (i, o, hi, lo, o + 0.2))
+        self.assertFalse(run("a.csv", "d,OPEN,HIGH,LOW,CLOSE\n" + "\n".join(rows) + "\n")["tripped"])
+
+
 class Hook(unittest.TestCase):
     def hook(self, tool_input):
         r = subprocess.run([sys.executable, os.path.join(ROOT, "forensics", "hook.py")],
