@@ -59,7 +59,7 @@ def fab_uniform_digits(seed):
 
 def fab_round(seed):
     r = random.Random(seed)
-    rows = ["firm,revenue_usd"] + ["f%d,%d" % (i, r.choice([5, 10, 20, 25, 50, 100, 150, 200, 250, 500, 750, 1000, 1500, 2500]) * r.choice([1, 10, 100])) for i in range(80)]
+    rows = ["firm,revenue_usd"] + ["f%d,%d" % (i, (r.choice([5, 10, 20, 25, 50, 100, 150, 200, 250, 500, 750, 1000, 1500, 2500]) * r.choice([1, 10, 100]) if i % 8 else r.randint(100, 9999))) for i in range(80)]
     return "round_heavy.csv", "\n".join(rows) + "\n", ("round",)
 
 

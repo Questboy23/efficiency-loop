@@ -268,7 +268,7 @@ def first_second(v):
     return min(d1, 9), min(d2, 9)
 
 
-SKIP_BENFORD = {"p", "pval", "pvalue", "prob", "probability", "pct", "percent", "percentile", "rank", "code",
+SKIP_BENFORD = {"fips", "geoid", "tract", "place", "county", "state", "p", "pval", "pvalue", "prob", "probability", "pct", "percent", "percentile", "rank", "code",
                 "id", "zip", "ccn", "phone", "year", "date", "expected", "share", "frac", "weight", "score",
                 "offset", "byte", "index", "idx", "n", "count", "corr", "ic", "r", "z", "t", "sd", "std"}
 
@@ -302,7 +302,16 @@ def benford(col_vals, label, out, header=""):
                         detail="n=%d, MAD=%.4f (limit %.3f)" % (n, mad2, BENFORD2_MAD), nums=[]))
 
 
-def last_digit(raw_col, label, out):
+ID_TOK = {"code", "id", "ccn", "zip", "phone", "year", "date", "npi", "cpt", "hcpcs", "ndc", "sha", "offset", "byte", "index", "idx", "fips", "geoid", "tract", "place", "county", "state", "gid", "fid", "uid"}
+
+
+def is_id(header):
+    return bool(set(tokens(header)) & ID_TOK) or header.lower().endswith(("_id", "_code"))
+
+
+def last_digit(raw_col, label, out, header=""):
+    if is_id(header):
+        return
     ds = [sig_digits(c) for c in raw_col]
     ds = [d for d in ds if len(d) >= 3]
     obs = Counter(d[-1] for d in ds if d[-1] != "0")   # 0 is dropped: trailing zeros get stripped on export
@@ -320,7 +329,7 @@ COUNT_TOK = {"n", "count", "num", "size", "obs", "trials", "horizon", "window", 
 
 
 def round_excess(raw_col, label, out, header=""):
-    if set(tokens(header)) & COUNT_TOK:
+    if set(tokens(header)) & COUNT_TOK or is_id(header):
         return
     ints = [c.strip().replace(",", "") for c in raw_col]
     ints = [c for c in ints if re.match(r"^\d{3,}$", c)]
@@ -329,7 +338,7 @@ def round_excess(raw_col, label, out, header=""):
         return
     k = sum(1 for c in ints if c[-1] in "05")
     out.append(dict(test="round_number_excess", col=label, p=binom_upper(k, n, 0.2),
-                    gate=k / n >= 0.5,
+                    gate=0.5 <= k / n < 0.98,   # 100% means a unit granularity (feet in fives), not typing
                     detail="%d of %d integers (%.0f%%) end in 0 or 5, expected 20%%" % (k, n, 100.0 * k / n),
                     nums=[c for c in ints if c[-1] in "05"][:8]))
 
@@ -410,7 +419,7 @@ def row_label(t, r):
 
 
 def close(a, b):
-    return abs(a - b) <= max(0.5, 0.002 * max(abs(a), abs(b)))
+    return abs(a - b) <= max(1.0, 1e-4 * max(abs(a), abs(b)))
 
 
 def arithmetic(t, out):
@@ -484,18 +493,27 @@ def duplicates(t, out):
     big = n > 1000            # large exports legitimately repeat rows
     num_idx = t.numeric
     if len(num_idx) >= 3 and not big:
-        keyc = Counter()
+        keyc, first = Counter(), {}
+        txt = [i for i in range(len(t.cols)) if i not in num_idx]
         for r in range(n):
             vs = tuple(t.cols[i][r].strip() for i in num_idx)
-            if sum(1 for i in num_idx if len(sig_digits(t.cols[i][r])) >= 4) >= 2:
-                keyc[vs] += 1
+            if sum(1 for i in num_idx if len(sig_digits(t.cols[i][r])) >= 4) >= 3:
+                if vs in first:
+                    # copy-paste leaves at most one text cell (the label) different
+                    other = first[vs]
+                    # (rows identical in every cell are export duplicates, not evidence)
+                    if [i for i in txt if t.cols[i][r] != t.cols[i][other]] == txt[:1]:
+                        keyc[vs] += 1
+                else:
+                    first[vs] = r
+        keyc = Counter({k: c + 1 for k, c in keyc.items()})
         dup = sum(c - 1 for c in keyc.values() if c > 1)
         if dup >= 3 and dup / n >= 0.1:
             worst = max(keyc, key=keyc.get)
             out.append(hit("duplicate_rows", t.name,
                            "%d of %d rows repeat the numeric fields of another row" % (dup, n), list(worst)))
     for i in num_idx:
-        vals = [c.strip() for c, v in zip(t.cols[i], t.vals[i]) if v is not None and len(sig_digits(c)) >= 3 and "." in c]
+        vals = [c.strip() for c, v in zip(t.cols[i], t.vals[i]) if v is not None and len(sig_digits(c)) >= 5 and "." in c]
         if len(vals) >= 20:
             top, cnt = Counter(vals).most_common(1)[0]
             if cnt >= 6 and 0.4 <= cnt / len(vals) <= 0.7:   # a fully constant column is a parameter, not a copy
@@ -519,7 +537,7 @@ def analyze(path):
         duplicates(t, f)
         for i in t.numeric:
             benford(t.vals[i], t.label(i), f, t.headers[i])
-            last_digit(t.cols[i], t.label(i), f)
+            last_digit(t.cols[i], t.label(i), f, t.headers[i])
             round_excess(t.cols[i], t.label(i), f, t.headers[i])
     if leaves:
         lv = [parse_num(x) for x in leaves]

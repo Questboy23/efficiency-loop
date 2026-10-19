@@ -1,0 +1,171 @@
+import glob
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+
+from forensics import check, gen
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def run(name, text):
+    d = tempfile.mkdtemp()
+    p = os.path.join(d, name)
+    with open(p, "w") as f:
+        f.write(text)
+    return check.analyze(p)
+
+
+def tests_hit(res):
+    return [x["test"] for x in res["findings"]]
+
+
+class FabricatedTrip(unittest.TestCase):
+    def test_each_fabricated_shape_trips_with_expected_test(self):
+        for fab in gen.FABRICATED:
+            for seed in (1, 2, 3):
+                name, text, expected = fab(seed)
+                res = run(name, text)
+                hit = tests_hit(res)
+                self.assertTrue(res["tripped"], "%s seed %d did not trip" % (name, seed))
+                self.assertTrue(any(h.startswith(e) or e in h for h in hit for e in expected),
+                                "%s seed %d tripped %s, wanted %s" % (name, seed, hit, expected))
+
+
+class RealShapedPass(unittest.TestCase):
+    def test_synthetic_real_shapes_stay_silent(self):
+        for fn in gen.REAL_SHAPED:
+            ext = "md" if fn is gen.stats_table_md else "csv"
+            for seed in range(20):
+                res = run("x." + ext, fn(seed))
+                self.assertFalse(res["tripped"], "%s seed %d: %s" % (fn.__name__, seed, res["findings"]))
+
+    def test_real_tables_on_disk_stay_silent(self):
+        files = sorted(glob.glob(os.path.expanduser("~/hospitalprice/out/tables/*.csv")))
+        files = [f for f in files if os.path.getsize(f) < 1_000_000]
+        if not files:
+            self.skipTest("no real tables on this machine")
+        tripped = [f for f in files if check.analyze(f)["tripped"]]
+        # hospital_service_rates.csv is a known false positive (Medicare rates cluster on few last digits)
+        self.assertLessEqual(len(tripped), max(1, len(files) // 10), tripped)
+
+
+class Gating(unittest.TestCase):
+    def test_fewer_than_50_numbers_is_silent(self):
+        res = run("a.csv", "p,n\n1.7,5\n2.2,4\n")
+        self.assertFalse(res["tripped"])
+        self.assertLess(res["n_numbers"], 50)
+
+    def test_benford_needs_two_orders_of_magnitude(self):
+        out = []
+        check.benford([float(x) for x in range(500, 700)], "c", out)
+        self.assertEqual(out, [])
+
+    def test_benford_second_digit_needs_300(self):
+        import random
+        r = random.Random(1)
+        vals = [10 ** r.uniform(0, 5) for _ in range(200)]
+        out = []
+        check.benford(vals, "c", out)
+        self.assertEqual([x["test"] for x in out], ["benford_first_digit"])
+
+
+class Units(unittest.TestCase):
+    def test_chi_square_pvalue_known_values(self):
+        self.assertAlmostEqual(check.chi_sq_p(15.507, 8), 0.05, places=3)
+        self.assertAlmostEqual(check.chi_sq_p(3.841, 1), 0.05, places=3)
+
+    def test_grim_flags_impossible_mean_only(self):
+        ok = "g,n,mean_score,min_score\n" + "\n".join("a%d,10,3.50,1" % i for i in range(20))
+        bad = "g,n,mean_score,min_score\n" + "\n".join("a%d,10,3.57,1" % i for i in range(20))
+        self.assertFalse(any(h.startswith("grim") for h in tests_hit(run("g.csv", ok + "\n"))))
+        self.assertTrue(any(h.startswith("grim") for h in tests_hit(run("g.csv", bad + "\n"))))
+
+    def test_impossible_values(self):
+        rows = "id,p,pct_%,sd,count\n" + "\n".join("%d,0.5,50,1.0,10" % i for i in range(20))
+        self.assertFalse(run("i.csv", rows + "\n")["tripped"])
+        for bad in ("1.5,50,1.0,10", "0.5,150,1.0,10", "0.5,50,-1.0,10", "0.5,50,1.0,-3"):
+            res = run("i.csv", rows + "\n99," + bad + "\n")
+            self.assertTrue(res["tripped"], bad)
+
+    def test_total_row_must_match(self):
+        good = gen.total_table_csv(5)
+        self.assertFalse(run("t.csv", good)["tripped"])
+        lines = good.split("\n")
+        parts = lines[-2].split(",")
+        parts[1] = str(int(parts[1]) + 999)
+        lines[-2] = ",".join(parts)
+        self.assertIn("total_mismatch", tests_hit(run("t.csv", "\n".join(lines))))
+
+    def test_markdown_table_columns(self):
+        t = gen.stats_table_md(3)
+        tables, leaves = check.load(self._write("m.md", t))
+        self.assertEqual(tables[0].headers, ["group", "n", "mean score", "sd", "p"])
+        self.assertEqual(len(tables[0].rows), 30)
+
+    def test_json_rows_and_columns(self):
+        rows = [{"a": i, "b": i * 1.5} for i in range(10)]
+        tables, _ = check.load(self._write("r.json", json.dumps(rows)))
+        self.assertEqual(tables[0].headers, ["a", "b"])
+        tables, _ = check.load(self._write("c.json", json.dumps({"a": list(range(10)), "b": list(range(10))})))
+        self.assertEqual(len(tables[0].rows), 10)
+
+    def test_message_and_exit_code(self):
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "x.csv")
+        name, text, _ = gen.fab_impossible(1)
+        open(p, "w").write(text)
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "forensics", "check.py"), p], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("Do not hand-edit these numbers", r.stderr)
+        self.assertIn("rerun forensics", r.stderr)
+
+    def _write(self, name, text):
+        p = os.path.join(tempfile.mkdtemp(), name)
+        open(p, "w").write(text)
+        return p
+
+
+class Hook(unittest.TestCase):
+    def hook(self, tool_input):
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "forensics", "hook.py")],
+                           input=json.dumps({"tool_input": tool_input}), capture_output=True, text=True)
+        return r.returncode, r.stderr
+
+    def test_data_file_trips_via_hook(self):
+        p = os.path.join(tempfile.mkdtemp(), "bad.csv")
+        open(p, "w").write(gen.fab_round(1)[1])
+        code, err = self.hook({"file_path": p})
+        self.assertEqual(code, 2)
+        self.assertIn("round_number_excess", err)
+
+    def test_clean_and_non_data_files_are_silent(self):
+        p = os.path.join(tempfile.mkdtemp(), "ok.csv")
+        open(p, "w").write(gen.lognormal_csv(1))
+        self.assertEqual(self.hook({"file_path": p})[0], 0)
+        q = os.path.join(tempfile.mkdtemp(), "x.png")
+        open(q, "wb").write(b"\x89PNG")
+        self.assertEqual(self.hook({"file_path": q})[0], 0)
+
+    def test_code_with_literal_results_and_random_trips(self):
+        p = os.path.join(tempfile.mkdtemp(), "make.py")
+        code = "import json\nresults = [0.91, 0.93, 0.95, 0.92, 0.94, 0.96, 0.97, 0.95, 0.98]\njson.dump(results, open('results.json','w'))\n"
+        open(p, "w").write(code)
+        self.assertEqual(self.hook({"file_path": p, "content": code})[0], 2)
+        code2 = "import random, csv\nrows=[random.uniform(0,1) for _ in range(9)]\ncsv.writer(open('report.csv','w')).writerow(rows)\n"
+        open(p, "w").write(code2)
+        self.assertEqual(self.hook({"file_path": p, "new_string": code2})[0], 2)
+        code3 = "print('hello')\n"
+        open(p, "w").write(code3)
+        self.assertEqual(self.hook({"file_path": p, "content": code3})[0], 0)
+
+    def test_bad_stdin_is_silent(self):
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "forensics", "hook.py")], input="nope", capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
