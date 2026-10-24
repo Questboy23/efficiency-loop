@@ -22,6 +22,7 @@ To install the harness as a Claude Code plugin:
 - **Forensics Tripwire (`forensics/check.py`)**: Detects fabricated or hand-typed data in files.
 - **Efficiency Layer Skill (`skills/efficiency-layer/SKILL.md`)**: Provides rules for efficient task completion.
 - **Hooks**: The forensics tripwire is automatically invoked on file write/edit operations.
+- **Worktree toolkit (`worktree/wt.py`)**: Runs agents in parallel git worktrees: best-of-N tournaments, harness A/B, free-proxy runs kept only when tests pass, a keep-if-better hypothesis sandbox, parallel feature folders, and background jobs. Slash commands `/wt-tourney`, `/wt-ab`, `/wt-fcc`, `/wt-try`, `/wt-new`, `/wt-bg`, `/wt-merge`, `/wt-ls`. See `worktree/README.md`.
 
 ## Usage
 
