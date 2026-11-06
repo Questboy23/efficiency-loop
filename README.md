@@ -4,6 +4,10 @@
 
 This repository contains the efficiency harness for Claude Code, including the forensics tripwire module and the efficiency layer skill.
 
+## AI disclosure
+
+Reed Ostrov chose the problem, the design and every decision in this repository. Claude Code (Anthropic) wrote the code and the tests at his direction. The ideas are his.
+
 ## Installation
 
 To install the harness as a Claude Code plugin:
