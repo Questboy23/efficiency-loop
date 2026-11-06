@@ -1,4 +1,6 @@
-# Efficiency Loop Harness
+# Efficiency Loop: a Claude Code plugin that catches fabricated numbers in files an agent writes, plus a toolkit for running agents in parallel.
+
+**Caught 259 of 260 author-generated fabricated test files (99.6%). On 137 real files from the author's machine, 3 tripped (2.2%).** Sources: `RESULTS.md`, `forensics/RESULTS.md`.
 
 This repository contains the efficiency harness for Claude Code, including the forensics tripwire module and the efficiency layer skill.
 
